@@ -22,7 +22,7 @@ from prepare_sector_network import prepare_costs
 
 idx = pd.IndexSlice
 
-opt_name = {"Store": "e", "Line": "s", "Transformer": "s"}
+opt_name = {"Store": "e", "Line": "s", "Transformer": "s", "Link" : "p_carrier"}
 
 
 def assign_carriers(n):
@@ -40,6 +40,38 @@ def assign_locations(n):
             else:
                 c.df.loc[names, "location"] = names.str[:i]
 
+def assign_countries(n):
+    n.buses.loc[n.buses.location!="EU","country"] = n.buses.loc[n.buses.loc[n.buses.location!="EU","location"].values,"country"].values
+    n.buses.loc[n.buses.location=="EU","country"] = 'EU'
+    return
+
+def mapper(x,n,to_apply=None):
+        if x in n.buses.index:
+            return n.buses.loc[x,to_apply]
+        else:
+            return np.nan    
+        
+def searcher(x,carrier):
+        if carrier in x.to_list():
+            return str(x.to_list().index(carrier))
+        else:
+            return np.nan
+
+def change_p_nom_opt_carrier(n,carrier='AC'):
+    # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
+    li = n.links
+    li["efficiency0"] = 1
+    efficiency_map = li[[c for c in li.columns if "efficiency" in c]].rename(columns={"efficiency": "efficiency1"})
+    buses_links = [c for c in li.columns if "bus" in c]
+    
+    carrier_map = li[buses_links].applymap(lambda x : mapper(x,n,to_apply="carrier"))
+    index_map = carrier_map.apply(lambda x : searcher(x,carrier), axis=1).dropna()
+    
+    efficiency_map = efficiency_map.loc[index_map.index]
+    efficiency_map = efficiency_map.apply(lambda x: x / x[f"efficiency{index_map.loc[x.name]}"], axis=1)
+    li.loc[efficiency_map.index, "p_carrier_nom_opt"] = li.p_nom_opt / efficiency_map["efficiency0"]    
+    
+    return
 
 def calculate_nodal_cfs(n, label, nodal_cfs):
     # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
@@ -742,6 +774,8 @@ def make_summaries(networks_dict):
 
         assign_carriers(n)
         assign_locations(n)
+        assign_countries(n)
+        change_p_nom_opt_carrier(n)
 
         for output in outputs:
             df[output] = globals()["calculate_" + output](n, label, df[output])
@@ -758,9 +792,15 @@ if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
 
-        snakemake = mock_snakemake("make_summary")
+        snakemake = mock_snakemake("make_summary",configfiles="config.CANEurope.runner.yaml")
 
     logging.basicConfig(level=snakemake.config["logging"]["level"])
+    snakemake.config["scenario"]["simpl"] = ['181']
+    snakemake.config["scenario"]["cluster"] = ["37m"]
+    snakemake.config["scenario"]["ll"] = ['v3.0']
+    snakemake.config["scenario"]["sector_opts"] = ['3H-I']
+    snakemake.config["scenario"]["planning_horizons"] = [2030,2035,2040]
+    snakemake.params.RDIR = "CANEurope_allam_false_nuc_phase_out_costs_up_v1_5_no_dac_irena_phase_out_config_social16_industry_test2"
 
     networks_dict = {
         (cluster, ll, opt + sector_opt, planning_horizon): "results/"
