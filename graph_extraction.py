@@ -12,6 +12,9 @@ import pylab
 import re
 from IPython.display import Image
 import matplotlib.pyplot as plt
+import numpy as np
+
+from make_sumamry import change_p_nom_opt_carrier
 
 
 def select_countries(ni,countries):
@@ -70,8 +73,6 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
         else:
             n_y_except = n_y_except[n_y_except.index.isin(carriers_links)]
         n_prod[y] = pd.concat([n_y, n_y_except])
-        # n_p_nom_opt[y] = n_prod["p_nom_opt"]
-        # n_p_nom[y] = n_prod["p_nom"]
         
     return {v: pd.concat({k: ni.groupby(by="carrier").sum()[v]/1e3 for k, ni in n_prod.items()},axis=1).fillna(0) for v in var}
 
@@ -241,6 +242,8 @@ def extract_graphs(years,n_path,n_name,countries=None,subset_production=None,sub
     for y in years:
         run_name = Path(n_path, "postnetworks", n_name + f"{y}.nc")
         n[y] = pypsa.Network(run_name)
+        assign_countries(n[y])
+        change_p_nom_opt_carrier(n[y],carrier='AC')
         
     #non-country specific extracts   
     ACDC_grid = extract_transmission_AC_DC(n,n_path,n_name)
@@ -277,6 +280,38 @@ def extract_graphs(years,n_path,n_name,countries=None,subset_production=None,sub
     n_gas.to_csv(Path(csvs,"gas_phase_out.csv"))
     n_ff.to_csv(Path(csvs,"fossil_fuels.csv"))
     return 
+
+
+# #%%
+def assign_countries(n):
+    n.buses.loc[n.buses.location!="EU","country"] = n.buses.loc[n.buses.loc[n.buses.location!="EU","location"].values,"country"].values
+    n.buses.loc[n.buses.location=="EU","country"] = 'EU'
+    return
+
+def mapper(x,n,to_apply=None):
+        if x in n.buses.index:
+            return n.buses.loc[x,to_apply]
+        else:
+            return np.nan    
+        
+def searcher(x,carrier):
+        if carrier in x.to_list():
+            return str(x.to_list().index(carrier))
+        else:
+            return np.nan
+        
+def extract_loads(n):
+    profiles =  {}
+    for y, ni in n.items():
+        loads_t = ni.loads_t.p.T
+        loads_t = loads_t.loc[~(loads_t.index.str.contains('H2')|loads_t.index.str.contains("NH3"))]
+        loads_t["country"] = ni.buses.loc[ni.loads.loc[loads_t.index].bus].country.values
+        loads_t.reset_index(inplace=True)
+        loads_t["Load"].where(loads_t["Load"].str.contains("industry"),"Load",inplace=True)
+        loads_t["Load"].mask(loads_t["Load"].str.contains("industry"),"Industry",inplace=True)
+        loads_t = loads_t.groupby(["country","Load"]).sum()
+        profiles[y] = loads_t
+    return pd.concat(profiles,names=["Years"])
     
 if __name__ == "__main__":
     
