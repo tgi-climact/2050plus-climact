@@ -104,25 +104,41 @@ def extract_res_potential(n):
     return df_potential
     
 def extract_transmission_AC_DC(n,n_path,n_name):
+    #Localy extend network collection 
+    capacity = []
+    n_copy = n.copy()
+    
     # Set historical values
     n_hist = pypsa.Network(Path(n_path, "prenetworks", n_name + f"{2030}.nc"))
-    capacity = [
-        (n_hist.lines.s_nom_min.sum()
-        +
-        n_hist.links[n_hist.links.carrier=="DC"].p_nom_min.sum())
-        /1e3
-    ]
+    assign_countries(n_hist)
+    n_hist.lines.carrier = "AC"
+    n_hist.lines.s_nom_opt = n_hist.lines.s_nom_min
+    n_hist.links.loc[n_hist.links.carrier.isin(["DC"]),'p_nom_opt'] = n_hist.links.p_nom_min
+    
+    n_copy["Historical"] =  n_hist
     
     # Add projected values
-    for y, ni in n.items():
-        capacity.append(
-            (ni.lines.s_nom_opt.sum()
-            +
-            ni.links[ni.links.carrier=="DC"].p_nom_opt.sum())
-            /1e3
-        )
+    for y, ni in n_copy.items():
+        AC = ni.lines.rename(columns={"s_nom_opt":"p_nom_opt"})
+        DC = ni.links[ni.links.carrier=="DC"]
+        AC_DC = pd.concat([AC,DC])
+        
+        buses_links = [c for c in AC_DC.columns if "bus" in c]
+        country_map = AC_DC[buses_links].applymap(lambda x : mapper(x,ni,to_apply="country"))
+        AC_DC_co = {}
+        for co in ni.buses.country.unique():
+            AC_DC_co[co] = AC_DC[country_map.apply(lambda L : L.fillna('').str.contains(co)).any(axis=1)] \
+                          .groupby("carrier").p_nom_opt.sum()
 
-    df = pd.DataFrame([capacity], index=["capacity [GVA]"], columns=["Historical"] + list(n.keys()))
+        pd.DataFrame.from_dict(AC_DC_co, orient = 'columns').fillna(0)/1e3
+
+        # for co in ni.buses.country.unique():
+        #     lines_co[co] = n.lines[country_map_lines.apply(lambda L : L.str.contains(co).fillna(False)).any(axis=1)].s_nom_opt.sum()
+            
+        AC_DC_total = pd.DataFrame(AC_DC.groupby("carrier").p_nom_opt.sum())/1e3
+        capacity.append(AC_DC_total.rename(columns={'p_nom_opt':y}))
+        
+    df = pd.concat(capacity,axis=1)
     
     return df
 
