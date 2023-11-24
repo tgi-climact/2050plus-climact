@@ -146,14 +146,23 @@ def extract_transmission_H2(n):
     # Add projected values
     capacity = []
     for y, ni in n.items():
-        capacity.append(
-            pd.DataFrame(
-                [
-                    [ni.links[ni.links.carrier.isin(["H2 pipeline"])].p_nom_opt.sum()/1e3],
-                    [ni.links[ni.links.carrier.isin(["H2 pipeline retrofitted"])].p_nom_opt.sum()/1e3]
-                ],
-                index=["H2 pipeline","H2 pipeline retrofitted"], columns = [y])
-            )
+        
+        H2_pipelines = pd.concat([ni.links[ni.links.carrier.isin(["H2 pipeline"])],
+                                  ni.links[ni.links.carrier.isin(["H2 pipeline retrofitted"])]
+                                  ])
+        
+        buses_links = [c for c in H2_pipelines.columns if "bus" in c]
+        country_map = H2_pipelines[buses_links].applymap(lambda x : mapper(x,ni,to_apply="country")) 
+        
+        H2_per_country = {}
+        for co in ni.buses.country.unique():
+            H2_per_country[co] = H2_pipelines[country_map.apply(lambda L : L.fillna('').str.contains(co)).any(axis=1)] \
+                                .groupby("carrier").p_nom_opt.sum().fillna(0)/1e3
+        pd.DataFrame.from_dict(H2_per_country, orient = 'columns')
+        
+        H2_total = pd.DataFrame(H2_pipelines.groupby("carrier").p_nom_opt.sum())/1e3
+        capacity.append(H2_total.rename(columns={'p_nom_opt':y}))
+
     df = pd.concat(capacity,axis=1)
     
     return df
