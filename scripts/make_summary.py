@@ -60,7 +60,9 @@ def searcher(x,carrier):
 def change_p_nom_opt_carrier(n,carrier='AC'):
     # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     li = n.links
+    li_t = n.links_t
     li["efficiency0"] = 1
+    li_t["p_carrier_nom_opt"] = li_t.p0*0
     efficiency_map = li[[c for c in li.columns if "efficiency" in c]].rename(columns={"efficiency": "efficiency1"})
     buses_links = [c for c in li.columns if "bus" in c]
     
@@ -70,6 +72,7 @@ def change_p_nom_opt_carrier(n,carrier='AC'):
     efficiency_map = efficiency_map.loc[index_map.index]
     efficiency_map = efficiency_map.apply(lambda x: x / x[f"efficiency{index_map.loc[x.name]}"], axis=1)
     li.loc[efficiency_map.index, "p_carrier_nom_opt"] = li.p_nom_opt / efficiency_map["efficiency0"]    
+    li_t.p_carrier_nom_opt.loc[:,efficiency_map.index] = li_t.p0/ efficiency_map["efficiency0"]
     
     return
 
