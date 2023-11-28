@@ -14,7 +14,6 @@ from IPython.display import Image
 import matplotlib.pyplot as plt
 import numpy as np
 
-from make_sumamry import change_p_nom_opt_carrier
 from make_summary import (change_p_nom_opt_carrier,
                             make_summaries,
                             mapper,
@@ -26,7 +25,7 @@ from make_summary import (change_p_nom_opt_carrier,
 
 from prepare_sector_network import prepare_costs
 
-def select_countries(ni,countries):
+def select_countries(ni, countries):
     return ni[ni.index.str[:2].isin(countries)]
     
 def get_state_of_charge_t(n, carrier):
@@ -98,12 +97,28 @@ def extract_production_profiles(n, subset):
     df = pd.concat(profiles)
     return df
 
+def extract_production_units(n,subset_gen=None,subset_links=None):
+
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
+                "solar rooftop": "solar", "coal": "coal/lignite",
+                "lignite": "coal/lignite","ror" : "hydro"} 
+    dischargers = ["battery discharger", "home battery discharger"]
+    balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
+                        "home battery charger", "Haber-Bosch", "Sabatier", 
+                        "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+    carriers_links = ["coal", "lignite", "oil"] # same carrier name than link
+    carriers = carriers_links + ["gas", "uranium", "biomass"] # different carrier name than link
+    transmissions = ["DC", "gas pipeline", "gas pipeline new", "CO2 pipeline",
+                      "H2 pipeline", "H2 pipeline retrofitted", "electricity distribution grid"]
+    balance_carriers_transmission_exclude = balance_exclude + carriers + transmissions + dischargers
+        
+    n_prod  ={}
     for y, ni in n.items():
         # Grab data from various sources
         n_y = pd.concat([
-            ni.links.groupby(by="carrier").sum(),
-            ni.generators.groupby(by="carrier").sum(), 
-            ni.storage_units.groupby(by="carrier").sum()
+            ni.links.groupby(by="carrier").sum().p_carrier_nom_opt,
+            ni.generators.groupby(by="carrier").sum().p_nom_opt, 
+            ni.storage_units.groupby(by="carrier").sum().p_nom_opt
         ])
         n_y = n_y.rename(index=renamer)
         
@@ -113,7 +128,7 @@ def extract_production_profiles(n, subset):
             n_y = n_y[~n_y.index.isin(balance_carriers_transmission_exclude)]
             
         # Grab exceptions for carriers/links   
-        n_y_except = ni.links.groupby(by="carrier").sum()
+        n_y_except = ni.links.groupby(by="carrier").sum().p_carrier_nom_opt
         n_y_except = n_y_except.rename(index=renamer)
         if subset_links:
             n_y_except = n_y_except[n_y_except.index.isin(subset_links)]
@@ -121,9 +136,9 @@ def extract_production_profiles(n, subset):
             n_y_except = n_y_except[n_y_except.index.isin(carriers_links)]
         n_prod[y] = pd.concat([n_y, n_y_except])
         
-    return {v: pd.concat({k: ni.groupby(by="carrier").sum()[v]/1e3 for k, ni in n_prod.items()},axis=1).fillna(0) for v in var}
+    return pd.concat({k: ni.groupby(by="carrier").sum()/1e3 for k, ni in n_prod.items()},axis=1).fillna(0)
 
-def extract_res_potential(n):
+def extract_res_potential_old(n):
     dfx = []
     dimensions = ["region", "carrier", "build_year"]
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
@@ -150,8 +165,33 @@ def extract_res_potential(n):
     df_potential = df_potential.reset_index().pivot(index="carrier", columns="planning horizon", values="potential")
 
     return df_potential
+  
+def extract_res_potential(n):
+    dfx = []
+    dimensions = ["region", "carrier", "build_year"]
+    rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
+               "solar rooftop": "solar", "coal": "coal/lignite",
+               "lignite": "coal/lignite","ror" : "hydro"} 
     
-def extract_transmission_AC_DC(n,n_path,n_name):
+    gens = select_countries(n.generators,n.buses.country.unique())
+    df_max = pd.DataFrame(gens.p_nom_max)
+    df_opt = pd.DataFrame(gens.p_nom_opt)
+    df = df_max.join(df_opt).reset_index()
+    df[dimensions] = df["Generator"].str.extract(rx)
+    df["carrier"] = df["carrier"].str.rstrip("-").replace(renamer)
+    df["planning horizon"] = "historical"
+    df = df[df["carrier"].isin(["onwind", "offwind", "solar"])]
+    dfx.append(df.groupby(["planning horizon", "carrier", "build_year"]).sum(numeric_only=True)/1e3) #GW
+    
+    dfx = pd.concat(dfx)
+    df_potential = pd.DataFrame()
+    df_potential["potential"] = dfx["p_nom_max"]
+    df_potential = df_potential.reset_index().pivot(index="carrier", columns="planning horizon", values="potential")
+
+    return df_potential
+  
+def extract_transmission_AC_DC(n, n_path, n_name):
     #Localy extend network collection 
     capacity = []
     capacity_countries = []
@@ -218,7 +258,7 @@ def extract_transmission_H2(n):
     df_co = pd.concat(capacity_countries,axis=0)
     return df,df_co
 
-def extract_storage_units(n,color_shift):
+def extract_storage_units(n, color_shift):
     n_store = {}
     storage_function = {"hydro" : "get_state_of_charge_t", "PHS" : "get_state_of_charge_t"}
     storage_horizon = {"hydro" : "LT", "PHS" : "ST", "H2 Store" : "LT",
@@ -259,7 +299,7 @@ def extract_storage_units(n,color_shift):
     plt.savefig(Path(path,"storage_unit.png"))
     return n_store
 
-def extract_gas_phase_out(n,year,subset=None):
+def extract_gas_phase_out(n, year, subset=None):
     dimensions = ["country", "build_year"]
     n_cgt = (
         n[year].links[n[year].links.carrier.str.contains("CGT")]
@@ -286,7 +326,6 @@ def extract_gas_phase_out(n,year,subset=None):
     
     return n_cgt[n_cgt[year] >= 1]
 
-def extract_graphs(years,n_path,n_name,countries=None,subset_production=None,subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"}):
 def extract_nodal_capacities(n):
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
                "solar rooftop": "solar", "coal": "coal/lignite",
@@ -317,6 +356,9 @@ def extract_nodal_capacities(n):
     df_capa = df_capa.loc[df_capa.unit_type.isin(["generators","links","storage_units"])]
     df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()
     return df_capa
+
+def extract_graphs(years, n_path, n_name, countries=None, subset_production=None,
+                   subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"}):
     
     n = {}
     for y in years:
@@ -326,13 +368,12 @@ def extract_nodal_capacities(n):
         assign_locations(n[y])
         assign_countries(n[y])
         change_p_nom_opt_carrier(n[y],carrier='AC')
-        
+    
     #non-country specific extracts   
-    ACDC_grid = extract_transmission_AC_DC(n,n_path,n_name)
-    H2_grid = extract_transmission_H2(n)
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
     H2_grid,H2_countries = extract_transmission_H2(n)
     n_gas = extract_gas_phase_out(n,2030)
+    n_res_pot = extract_res_potential(n_hist)
     
     for y in years:
         if countries:
@@ -344,23 +385,24 @@ def extract_nodal_capacities(n):
     #country specific extracts   
     capa_country = extract_nodal_capacities(n)
     n_sto = extract_storage_units(n,color_shift)
-    n_prod = extract_production_units(n).get("p_nom_opt")
-    n_res_pot = extract_res_potential(n)
     n_profile  = extract_production_profiles(n, 
                                      subset = ["coal", "lignite", "oil","CCGT","OCGT",
                                                      "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
                                                         "ammonia cracker", "helmeth", "SMR", "SMR CC"] )
     
+    n_prod = extract_production_units(n)
     n_res = extract_production_units(n,subset_gen = ["solar","onwind","offwind","ror"],
-                                     subset_links = [""]).get("p_nom_opt")
+                                     subset_links = [""])
     n_bal = extract_production_units(n,subset_gen = [""], 
                                      subset_links = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
-                                                        "ammonia cracker", "helmeth", "SMR", "SMR CC"]).get("p_nom_opt")
+                                                        "ammonia cracker", "helmeth", "SMR", "SMR CC"])
     n_ff  = extract_production_units(n,subset_gen = [""], 
-                                     subset_links = ["coal", "lignite", "oil","CCGT","OCGT"] ).get("p_nom_opt")
+                                     subset_links = ["coal", "lignite", "oil","CCGT","OCGT"] )
+
     n_loads = extract_loads(n)
+   
 
     #extract
     n_prod.to_csv(Path(csvs,"power_production_capacities.csv"))
@@ -371,7 +413,6 @@ def extract_nodal_capacities(n):
     n_bal.to_csv(Path(csvs,"power_balance_capacities.csv"))
     n_gas.to_csv(Path(csvs,"gas_phase_out.csv"))
     n_ff.to_csv(Path(csvs,"fossil_fuels.csv"))
-    return 
     
     #extract profiles
     n_loads.to_csv(Path(csvs,"loads_profiles.csv"))
@@ -382,24 +423,9 @@ def extract_nodal_capacities(n):
     H2_countries.to_csv(Path(csvs,"H2_network_capacity_countries.csv"))
     capa_country.to_csv(Path(csvs,"units_capacity_countries.csv"))
 
-# #%%
-def assign_countries(n):
-    n.buses.loc[n.buses.location!="EU","country"] = n.buses.loc[n.buses.loc[n.buses.location!="EU","location"].values,"country"].values
-    n.buses.loc[n.buses.location=="EU","country"] = 'EU'
-    return
+    
+    return 
 
-def mapper(x,n,to_apply=None):
-        if x in n.buses.index:
-            return n.buses.loc[x,to_apply]
-        else:
-            return np.nan    
-        
-def searcher(x,carrier):
-        if carrier in x.to_list():
-            return str(x.to_list().index(carrier))
-        else:
-            return np.nan
-        
 def extract_loads(n):
     profiles =  {}
     for y, ni in n.items():
@@ -416,10 +442,18 @@ def extract_loads(n):
     return pd.concat(profiles,names=["Years"])
     
 if __name__ == "__main__":
+    if "snakemake" not in globals():
+        from _helpers import mock_snakemake
+
+        snakemake = mock_snakemake("make_summary",configfiles="config.CANEurope.runner.yaml")
+    
+    
+    import os 
+    os.chdir('C:/Users/VincentLaguna/pypsa-eur-climact')
+    
     
     #for testing
     years = [2030, 2035, 2040]
-    path = Path("analysis", "Graph_Extraction_template")
     path = Path("analysis", "CANEurope_extraction_3H-I")
     
     simpl = 181
@@ -444,7 +478,7 @@ if __name__ == "__main__":
 
     
     n_path = Path(path,"results")
-    n_name = "elec_s181_37m_lv3.0__3H_"
+    n_name = "elec_s181_37m_lv3.0__3H-I_"
     csvs = Path(path,"csvs_for_graphs")
     
     countries= None #["BE","DE","FR","UK"]
