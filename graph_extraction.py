@@ -25,9 +25,22 @@ from make_summary import (change_p_nom_opt_carrier,
 
 from prepare_sector_network import prepare_costs
 
-def select_countries(ni, countries):
-    return ni[ni.index.str[:2].isin(countries)]
-    
+def reduce_to_countries(df,index):
+    buses = [c for c in df.columns if "bus" in c]
+    return df.loc[df.loc[:,buses].applymap(lambda x : x in index).values.any(axis=1)]
+
+def select_countries(n,countries):
+    index = n.buses.loc[n.buses.country.isin(eu25_countries)].index
+    n.generators = reduce_to_countries(n.generators,index)
+    n.lines = reduce_to_countries(n.lines,index)
+    n.links = reduce_to_countries(n.links,index)
+    n.stores = reduce_to_countries(n.stores,index)
+    n.storage_units = reduce_to_countries(n.storage_units,index)
+    n.loads_t.p = n.loads_t.p.loc[:,n.loads_t.p.columns.intersection(index)]
+    n.loads_t.p_set = n.loads_t.p_set.loc[:,n.loads_t.p_set.columns.intersection(index)]
+    n.buses = n.buses.loc[index]
+    return n
+
 def get_state_of_charge_t(n, carrier):
     df = n.storage_units_t.state_of_charge.T.reset_index()
     df = df.merge(n.storage_units.reset_index()[["carrier", "StorageUnit"]], on="StorageUnit")
@@ -73,6 +86,7 @@ def extract_production_profiles(n, subset):
         n_y = n_y.rename(index=renamer)
         
         #sorting the carriers
+        n_y_t = n_y_t.loc[:,n_y.index]
         n_y_t = n_y_t.loc[:,n_y.carrier.isin(subset)]
         n_y = n_y.loc[n_y.carrier.isin(subset)]
         
@@ -174,7 +188,7 @@ def extract_res_potential(n):
                "solar rooftop": "solar", "coal": "coal/lignite",
                "lignite": "coal/lignite","ror" : "hydro"} 
     
-    gens = select_countries(n.generators,n.buses.country.unique())
+    gens = n.generators
     df_max = pd.DataFrame(gens.p_nom_max)
     df_opt = pd.DataFrame(gens.p_nom_opt)
     df = df_max.join(df_opt).reset_index()
@@ -200,9 +214,10 @@ def extract_transmission_AC_DC(n, n_path, n_name):
     # Set historical values
     n_hist = pypsa.Network(Path(n_path, "prenetworks", n_name + f"{2030}.nc"))
     assign_countries(n_hist)
+    n_hist = select_countries(n_hist,eu25_countries)
     n_hist.lines.carrier = "AC"
     n_hist.lines.s_nom_opt = n_hist.lines.s_nom_min
-    n_hist.links.loc[n_hist.links.carrier.isin(["DC"]),'p_nom_opt'] = n_hist.links.p_nom_min
+    n_hist.links.loc[n_hist.links.carrier.isin(["DC"]),'p_nom_opt'] = n_hist.links.loc[n_hist.links.carrier.isin(["DC"]),'p_nom_min']
     
     n_copy["Historical"] =  n_hist
     
@@ -368,19 +383,16 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         assign_locations(n[y])
         assign_countries(n[y])
         change_p_nom_opt_carrier(n[y],carrier='AC')
+        if countries:
+            select_countries(n[y], countries)
+        continue
     
     #non-country specific extracts   
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
     H2_grid,H2_countries = extract_transmission_H2(n)
     n_gas = extract_gas_phase_out(n,2030)
     n_res_pot = extract_res_potential(n_hist)
-    
-    for y in years:
-        if countries:
-            n[y].generators = select_countries(n[y].generators,countries)
-            n[y].links = select_countries(n[y].links,countries)
-            n[y].storage_units = select_countries(n[y].storage_units,countries)
-            n[y].stores = select_countries(n[y].stores,countries)
+
         
     #country specific extracts   
     capa_country = extract_nodal_capacities(n)
@@ -422,31 +434,25 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     ACDC_countries.to_csv(Path(csvs,"grid_capacity_countries.csv"))
     H2_countries.to_csv(Path(csvs,"H2_network_capacity_countries.csv"))
     capa_country.to_csv(Path(csvs,"units_capacity_countries.csv"))
-
-    
     return 
 
 def extract_loads(n):
     profiles =  {}
     for y, ni in n.items():
         loads_t = ni.loads_t.p.T
-        #loads_t = loads_t.loc[~(loads_t.index.str.contains('H2')|loads_t.index.str.contains("NH3"))]
+        loads_t.index.names= ['Load']
         loads_t["country"] = ni.buses.loc[ni.loads.loc[loads_t.index].bus].country.values
         loads_t.reset_index(inplace=True)
         loads_t["Load"].mask(loads_t["Load"].str.contains("NH3"),"NH3 for industry",inplace=True)
         loads_t["Load"].mask(loads_t["Load"].str.contains("H2"),"H2 for industry",inplace=True)
-        loads_t["Load"].where(loads_t["Load"].str.contains("industry"),"Load",inplace=True)
         loads_t["Load"].mask(loads_t["Load"].str.contains("industry electricity"),"Industry",inplace=True)
+        loads_t["Load"].where(loads_t["Load"].str.contains("industry"),"Load",inplace=True)
+        
         loads_t = loads_t.groupby(["country","Load"]).sum()
         profiles[y] = loads_t
     return pd.concat(profiles,names=["Years"])
     
 if __name__ == "__main__":
-    if "snakemake" not in globals():
-        from _helpers import mock_snakemake
-
-        snakemake = mock_snakemake("make_summary",configfiles="config.CANEurope.runner.yaml")
-    
     
     import os 
     os.chdir('C:/Users/VincentLaguna/pypsa-eur-climact')
@@ -454,12 +460,12 @@ if __name__ == "__main__":
     
     #for testing
     years = [2030, 2035, 2040]
-    path = Path("analysis", "CANEurope_extraction_3H-I")
+    path = Path("analysis", "CANEurope_industry_VLA")
     
     simpl = 181
     cluster = 37
     opts = ""
-    sector_opts = "3H-I"
+    sector_opts = "3H"
     ll = "v3.0"
     
     networks_dict = {
@@ -477,11 +483,13 @@ if __name__ == "__main__":
     df["nodal_capacities"] = pd.DataFrame(columns=years, dtype=float)
 
     
+    eu25_countries = ["AT", "BE", "BG", "HR", "CZ", "DK", "EE", "FI", "FR", "DE", "HU", 'GR', "IE", "IT", "LV", "LT",
+            "LU", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"]
     n_path = Path(path,"results")
     n_name = "elec_s181_37m_lv3.0__3H-I_"
     csvs = Path(path,"csvs_for_graphs")
     
     countries= None #["BE","DE","FR","UK"]
     
-    extract_graphs(years,n_path,n_name,countries=countries)
+    extract_graphs(years,n_path,n_name,countries=eu25_countries)
     
