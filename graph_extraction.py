@@ -25,6 +25,10 @@ from make_summary import (change_p_nom_opt_carrier,
 
 from prepare_sector_network import prepare_costs
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def reduce_to_countries(df,index):
     buses = [c for c in df.columns if "bus" in c]
     return df.loc[df.loc[:,buses].applymap(lambda x : x in index).values.any(axis=1)]
@@ -490,6 +494,6 @@ if __name__ == "__main__":
     csvs = Path(path,"csvs_for_graphs")
     
     countries= None #["BE","DE","FR","UK"]
-    
+    logger.info(f"Extracting from {path}")
     extract_graphs(years,n_path,n_name,countries=eu25_countries)
     
