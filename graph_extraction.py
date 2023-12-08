@@ -40,8 +40,8 @@ def select_countries(n,countries):
     n.links = reduce_to_countries(n.links,index)
     n.stores = reduce_to_countries(n.stores,index)
     n.storage_units = reduce_to_countries(n.storage_units,index)
-    n.loads_t.p = n.loads_t.p.loc[:,n.loads_t.p.columns.intersection(index)]
-    n.loads_t.p_set = n.loads_t.p_set.loc[:,n.loads_t.p_set.columns.intersection(index)]
+    n.loads_t.p = n.loads_t.p.loc[:,n.loads_t.p.columns.str[:2].isin(countries)]
+    n.loads_t.p_set = n.loads_t.p_set.loc[:,n.loads_t.p_set.columns.str[:2].isin(countries)]
     n.buses = n.buses.loc[index]
     return n
 
@@ -453,6 +453,7 @@ def extract_loads(n):
         loads_t["Load"].where(loads_t["Load"].str.contains("industry"),"Load",inplace=True)
         
         loads_t = loads_t.groupby(["country","Load"]).sum()
+        loads_t.insert(0,column="Annual sum [TWh]",value= loads_t.sum(axis=1)/1e6*8760/len(ni.snapshots))
         profiles[y] = loads_t
     return pd.concat(profiles,names=["Years"])
     
