@@ -376,6 +376,23 @@ def extract_nodal_capacities(n):
     df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()
     return df_capa
 
+def extract_nodal_costs(n):
+    df = (pd.read_csv(Path(path,'results','csvs','nodal_costs.csv'),
+                     index_col = [0,1,2,3],
+                     skiprows=3,
+                     header=0,
+                     names=['Type','Cost','Country','Tech','2030','2035','2040'])
+                    .reset_index())
+    df['Country'] = df['Country'].str[:2].fillna('')
+    df = df.loc[df.Country.isin(eu25_countries)]
+    df = df.set_index(['Type','Cost','Country','Tech'])
+    df = df.fillna(0).groupby(['Type','Cost','Country','Tech']).sum()
+    df = df.loc[~df.apply(lambda x : x<1e3).all(axis=1)]
+    return df
+    
+    
+    
+
 def extract_graphs(years, n_path, n_name, countries=None, subset_production=None,
                    subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"}):
     
@@ -418,7 +435,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
                                      subset_links = ["coal", "lignite", "oil","CCGT","OCGT"] )
 
     n_loads = extract_loads(n)
-   
+    n_costs = extract_nodal_costs(n)
 
     #extract
     n_prod.to_csv(Path(csvs,"power_production_capacities.csv"))
@@ -433,6 +450,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     #extract profiles
     n_loads.to_csv(Path(csvs,"loads_profiles.csv"))
     n_profile.to_csv(Path(csvs,"generation_profiles.csv"))
+    n_costs.to_csv(Path(csvs,'costs_countries.csv'))
     
     #extract country specific
     ACDC_countries.to_csv(Path(csvs,"grid_capacity_countries.csv"))
@@ -464,8 +482,8 @@ if __name__ == "__main__":
     
     
     #for testing
-    years = [2030, 2035, 2040]
-    path = Path("analysis", "CANEurope_industry_VLA")
+    years = [2030, 2035]
+    path = Path("analysis", "CANEurope_industry_no_SMR_oil_3H")
     
     simpl = 181
     cluster = 37
