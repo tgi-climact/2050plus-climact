@@ -371,7 +371,6 @@ def extract_nodal_capacities(n):
     
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
     df_capa = df_capa.groupby(["unit_type","node","carrier"]).sum().reset_index(["carrier","unit_type"])
-    df_capa = df_capa.loc[~df_capa.carrier.isin(balance_carriers_transmission_exclude)&~df_capa.carrier.isin(carriers_links)]
     df_capa = df_capa.loc[df_capa.unit_type.isin(["generators","links","storage_units"])]
     df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()
     return df_capa
@@ -419,7 +418,8 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     capa_country = extract_nodal_capacities(n)
     n_sto = extract_storage_units(n,color_shift)
     n_profile  = extract_production_profiles(n, 
-                                     subset = ["coal", "lignite", "oil","CCGT","OCGT",
+                                     subset = ["solar","onwind","offwind","ror",
+                                               "coal", "lignite", "oil","CCGT","OCGT",
                                                      "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
                                                         "ammonia cracker", "helmeth", "SMR", "SMR CC"] )
@@ -431,6 +431,11 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
                                      subset_links = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
                                                         "ammonia cracker", "helmeth", "SMR", "SMR CC"])
+    n_capa = extract_production_units(n,subset_gen = ["solar","onwind","offwind","ror"] ,
+                                             subset_links = ["coal", "lignite", "oil","CCGT","OCGT",
+                                                             "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
+                                                                "home battery charger", "Haber-Bosch", "Sabatier", 
+                                                                "ammonia cracker", "helmeth", "SMR", "SMR CC"])
     n_ff  = extract_production_units(n,subset_gen = [""], 
                                      subset_links = ["coal", "lignite", "oil","CCGT","OCGT"] )
 
@@ -446,6 +451,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     n_bal.to_csv(Path(csvs,"power_balance_capacities.csv"))
     n_gas.to_csv(Path(csvs,"gas_phase_out.csv"))
     n_ff.to_csv(Path(csvs,"fossil_fuels.csv"))
+    n_capa.to_csv(Path(csvs,"capacities_countries"))
     
     #extract profiles
     n_loads.to_csv(Path(csvs,"loads_profiles.csv"))
