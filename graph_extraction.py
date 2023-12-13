@@ -329,7 +329,7 @@ def extract_gas_phase_out(n, year, subset=None):
             how="left"
             )
         .groupby(by=dimensions)
-        ["p_nom_opt"]
+        ["p_carrier_nom_opt"]
         .sum(numeric_only=True)
         .reset_index()
     )
@@ -339,7 +339,7 @@ def extract_gas_phase_out(n, year, subset=None):
         .groupby(by=dimensions)
         .sum()
         .reset_index()
-        .pivot(index="country", columns="build_year", values="p_nom_opt")
+        .pivot(index="country", columns="build_year", values="p_carrier_nom_opt")
         .sort_values(by=year, ascending=False)
     ) / 1e3 # GW
     
