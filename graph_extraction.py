@@ -119,7 +119,8 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
 
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
                 "solar rooftop": "solar", "coal": "coal/lignite",
-                "lignite": "coal/lignite","ror" : "hydro"} 
+                "lignite": "coal/lignite","ror" : "hydro",
+                'urban central biomass CHP' : 'biomass CHP'}  
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                         "home battery charger", "Haber-Bosch", "Sabatier", 
@@ -162,7 +163,8 @@ def extract_res_potential_old(n):
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
                "solar rooftop": "solar", "coal": "coal/lignite",
-               "lignite": "coal/lignite","ror" : "hydro"} 
+               "lignite": "coal/lignite","ror" : "hydro",
+               'urban central biomass CHP' : 'biomass CHP'} 
     
     for y, ni in n.items():
         df_max = pd.DataFrame(ni.generators.p_nom_max)
@@ -348,7 +350,8 @@ def extract_gas_phase_out(n, year, subset=None):
 def extract_nodal_capacities(n):
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
                "solar rooftop": "solar", "coal": "coal/lignite",
-               "lignite": "coal/lignite","ror" : "hydro"} 
+               "lignite": "coal/lignite","ror" : "hydro",
+               'urban central biomass CHP' : 'biomass CHP'} 
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                        "home battery charger", "Haber-Bosch", "Sabatier", 
@@ -376,6 +379,7 @@ def extract_nodal_capacities(n):
     return df_capa
 
 def extract_nodal_costs(n):
+    #Todo : add handling of multiple runs 
     df = (pd.read_csv(Path(path,'results','csvs','nodal_costs.csv'),
                      index_col = [0,1,2,3],
                      skiprows=3,
@@ -389,9 +393,6 @@ def extract_nodal_costs(n):
     df = df.loc[~df.apply(lambda x : x<1e3).all(axis=1)]
     return df
     
-    
-    
-
 def extract_graphs(years, n_path, n_name, countries=None, subset_production=None,
                    subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"}):
     
@@ -414,16 +415,19 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     n_res_pot = extract_res_potential(n_hist)
 
         
+    long_list_links = ["coal/lignite", "oil","CCGT","OCGT",
+                    "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
+                       "home battery charger", "Haber-Bosch", "Sabatier", 
+                       "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+    
+    long_list_gens = ["solar", "onwind", "offwind", "ror", "nuclear", "biomass CHP"]
+    
     #country specific extracts   
+    n_costs = extract_nodal_costs(n)
     capa_country = extract_nodal_capacities(n)
     n_sto = extract_storage_units(n,color_shift)
     n_profile  = extract_production_profiles(n, 
-                                     subset = ["solar","onwind","offwind","ror",
-                                               "coal", "lignite", "oil","CCGT","OCGT",
-                                                     "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
-                                                        "home battery charger", "Haber-Bosch", "Sabatier", 
-                                                        "ammonia cracker", "helmeth", "SMR", "SMR CC"] )
-    
+                                     subset = long_list_links + long_list_gens)
     n_prod = extract_production_units(n)
     n_res = extract_production_units(n,subset_gen = ["solar","onwind","offwind","ror"],
                                      subset_links = [""])
@@ -431,16 +435,12 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
                                      subset_links = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
                                                         "ammonia cracker", "helmeth", "SMR", "SMR CC"])
-    n_capa = extract_production_units(n,subset_gen = ["solar","onwind","offwind","ror"] ,
-                                             subset_links = ["coal", "lignite", "oil","CCGT","OCGT",
-                                                             "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
-                                                                "home battery charger", "Haber-Bosch", "Sabatier", 
-                                                                "ammonia cracker", "helmeth", "SMR", "SMR CC"])
+    n_capa = extract_production_units(n,subset_gen = long_list_gens ,
+                                             subset_links = long_list_links)
     n_ff  = extract_production_units(n,subset_gen = [""], 
-                                     subset_links = ["coal", "lignite", "oil","CCGT","OCGT"] )
+                                     subset_links = ["coal/lignite", "oil", "CCGT","OCGT"] )
 
     n_loads = extract_loads(n)
-    n_costs = extract_nodal_costs(n)
 
     #extract
     n_prod.to_csv(Path(csvs,"power_production_capacities.csv"))
@@ -451,7 +451,8 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     n_bal.to_csv(Path(csvs,"power_balance_capacities.csv"))
     n_gas.to_csv(Path(csvs,"gas_phase_out.csv"))
     n_ff.to_csv(Path(csvs,"fossil_fuels.csv"))
-    n_capa.to_csv(Path(csvs,"capacities_countries"))
+    n_capa.to_csv(Path(csvs,"capacities.csv"))
+    capa_country.to_csv(Path(csvs,"capacities_countries.csv"))
     
     #extract profiles
     n_loads.to_csv(Path(csvs,"loads_profiles.csv"))
