@@ -388,6 +388,7 @@ def extract_nodal_costs(n):
                      names=['Type','Cost','Country','Tech','2030','2035','2040'])
                     .reset_index())
     df['Country'] = df['Country'].str[:2].fillna('')
+    df.loc[df.Tech.isin(["gas","biomass"])&df.Cost.str.contains('marginal')&df.Type.str.contains('generators'),'Cost'] = 'fuel'
     df = df.set_index(['Type','Cost','Country','Tech'])
     df = df.fillna(0).groupby(['Type','Cost','Country','Tech']).sum()
     df = df.loc[~df.apply(lambda x : x<1e3).all(axis=1)]
