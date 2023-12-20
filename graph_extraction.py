@@ -288,7 +288,7 @@ def extract_storage_units(n, color_shift):
     carrier = list(storage_horizon.keys())
     
     plt.close('all')
-    plt.figure(figsize=(14,8))
+    fig = plt.figure(figsize=(14,8))
     def plotting(ax,title,data,y):
         ax.plot(data,label = y,color=color_shift.get(y))
         ax.set_title(title)
@@ -315,9 +315,8 @@ def extract_storage_units(n, color_shift):
             ax = plt.subplot(3,2,2*(i+1))
             plotting(ax,car,l,y)
 
-    plt.legend()
-    plt.savefig(Path(path,"storage_unit.png"))
-    return n_store
+    ax.legend()
+    return fig
 
 def extract_gas_phase_out(n, year, subset=None):
     dimensions = ["country", "build_year"]
@@ -450,6 +449,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         for csv in [csvs,Path(path,'csvs_for_graphs')]:
             n_capa.to_csv(Path(csv,"capacities.csv"))
             capa_country.to_csv(Path(csv,"capacities_countries.csv"))
+            n_sto.savefig(Path(csv,"storage_unit.png"))
             n_prod.to_csv(Path(csv,"power_production_capacities.csv"))
             n_res_pot.to_csv(Path(csv,"res_potentials.csv"))
             n_res.to_csv(Path(csv,"res_capacities.csv"))
