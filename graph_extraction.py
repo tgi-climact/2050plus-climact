@@ -220,7 +220,6 @@ def extract_transmission_AC_DC(n, n_path, n_name):
     # Set historical values
     n_hist = pypsa.Network(Path(n_path, "prenetworks", n_name + f"{2030}.nc"))
     assign_countries(n_hist)
-    n_hist = select_countries(n_hist,eu25_countries)
     n_hist.lines.carrier = "AC"
     n_hist.lines.s_nom_opt = n_hist.lines.s_nom_min
     n_hist.links.loc[n_hist.links.carrier.isin(["DC"]),'p_nom_opt'] = n_hist.links.loc[n_hist.links.carrier.isin(["DC"]),'p_nom_min']
@@ -387,7 +386,6 @@ def extract_nodal_costs(n):
                      names=['Type','Cost','Country','Tech','2030','2035','2040'])
                     .reset_index())
     df['Country'] = df['Country'].str[:2].fillna('')
-    df = df.loc[df.Country.isin(eu25_countries)]
     df = df.set_index(['Type','Cost','Country','Tech'])
     df = df.fillna(0).groupby(['Type','Cost','Country','Tech']).sum()
     df = df.loc[~df.apply(lambda x : x<1e3).all(axis=1)]
@@ -403,14 +401,19 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         assign_carriers(n[y])
         assign_locations(n[y])
         assign_countries(n[y])
-        if countries:
-            select_countries(n[y], countries)
-        continue
-    
-    #non-country specific extracts   
         change_p_nom_opt_carrier(n[y])
+
+    #Extract full country list before selection of countries
+    capa_country = extract_nodal_capacities(n)
+    n_sto = extract_storage_units(n,color_shift)
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
     H2_grid,H2_countries = extract_transmission_H2(n)
+    n_costs = extract_nodal_costs(n,countries)
+    
+    for y in years:
+        if countries:
+            select_countries(n[y], countries)
+            
     n_gas = extract_gas_phase_out(n,2030)
     n_res_pot = extract_res_potential(n_hist)
 
@@ -423,9 +426,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     long_list_gens = ["solar", "onwind", "offwind", "ror", "nuclear", "biomass CHP"]
     
     #country specific extracts   
-    n_costs = extract_nodal_costs(n)
-    capa_country = extract_nodal_capacities(n)
-    n_sto = extract_storage_units(n,color_shift)
+   
     n_profile  = extract_production_profiles(n, 
                                      subset = long_list_links + long_list_gens)
     n_prod = extract_production_units(n)
