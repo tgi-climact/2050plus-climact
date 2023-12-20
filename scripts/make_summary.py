@@ -57,7 +57,30 @@ def searcher(x,carrier):
         else:
             return np.nan
 
-def change_p_nom_opt_carrier(n,carrier='AC'):
+def change_p_nom_opt_carrier(n,carriers=['AC']):
+    """
+    This function expresses for each asset p_nom_opt (whose carrier is not always the same)
+    in function of the given carrier, considering the efficiency
+    E.g.: having p_nom_opt = 333MW for a nuclear powerplant is equal to say that 
+            p_carrier_nom_opt = 100MW_e, if the carrier is 'AC', as the efficiency 
+            from p_nom_opt to AC is 0.333 for this technology
+            
+    Currently, carriers should be limited to ['AC'] as no strict testing was made with other carriers.
+    In a future development, this function should be able to tackle several carriers
+    
+    Parameters
+    ----------
+    n : pypsa.network
+        
+    carriers : List, optional
+        List of carriers to use. Must be limited to ['AC'] for the moment, as bugs might arise. The default is ['AC'].
+
+    Returns
+    -------
+    None.
+
+    """
+    
     # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     li = n.links
     li_t = n.links_t
@@ -66,15 +89,16 @@ def change_p_nom_opt_carrier(n,carrier='AC'):
     li_t["p_carrier_nom_opt"] = li_t.p0
     efficiency_map = li[[c for c in li.columns if "efficiency" in c]].rename(columns={"efficiency": "efficiency1"})
     buses_links = [c for c in li.columns if "bus" in c]
-    
     carrier_map = li[buses_links].applymap(lambda x : mapper(x,n,to_apply="carrier"))
-    index_map = carrier_map.apply(lambda x : searcher(x,carrier), axis=1).dropna()
     
-    efficiency_map = efficiency_map.loc[index_map.index]
-    efficiency_map = efficiency_map.apply(lambda x: x / x[f"efficiency{index_map.loc[x.name]}"], axis=1)
-    li.loc[efficiency_map.index, "p_carrier_nom_opt"] /= efficiency_map["efficiency0"]    
-    li_t.p_carrier_nom_opt.loc[:,efficiency_map.index] /= efficiency_map["efficiency0"]
-    
+    for carrier in carriers:
+        index_map = carrier_map.apply(lambda x : searcher(x,carrier), axis=1).dropna()
+        
+        efficiency_map = efficiency_map.loc[index_map.index]
+        efficiency_map = efficiency_map.apply(lambda x: x / x[f"efficiency{index_map.loc[x.name]}"], axis=1)
+        li.loc[efficiency_map.index, "p_carrier_nom_opt"] = li.loc[efficiency_map.index, "p_nom_opt"] / efficiency_map["efficiency0"]    
+        li_t.p_carrier_nom_opt.loc[:,efficiency_map.index] = li_t.p0.loc[:,efficiency_map.index] / efficiency_map["efficiency0"]
+        
     return
 
 def calculate_nodal_cfs(n, label, nodal_cfs):

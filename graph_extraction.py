@@ -403,12 +403,12 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         assign_carriers(n[y])
         assign_locations(n[y])
         assign_countries(n[y])
-        change_p_nom_opt_carrier(n[y],carrier='AC')
         if countries:
             select_countries(n[y], countries)
         continue
     
     #non-country specific extracts   
+        change_p_nom_opt_carrier(n[y])
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
     H2_grid,H2_countries = extract_transmission_H2(n)
     n_gas = extract_gas_phase_out(n,2030)
