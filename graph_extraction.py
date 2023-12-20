@@ -392,7 +392,7 @@ def extract_nodal_costs(n):
     return df
     
 def extract_graphs(years, n_path, n_name, countries=None, subset_production=None,
-                   subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"}):
+                   subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"},export=False):
     
     n = {}
     for y in years:
@@ -443,27 +443,33 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
 
     n_loads = extract_loads(n)
 
-    #extract
-    n_prod.to_csv(Path(csvs,"power_production_capacities.csv"))
-    n_res_pot.to_csv(Path(csvs,"res_potentials.csv"))
-    n_res.to_csv(Path(csvs,"res_capacities.csv"))
-    ACDC_grid.to_csv(Path(csvs,"grid_capacity.csv"))
-    H2_grid.to_csv(Path(csvs,"H2_network_capacity.csv"))
-    n_bal.to_csv(Path(csvs,"power_balance_capacities.csv"))
-    n_gas.to_csv(Path(csvs,"gas_phase_out.csv"))
-    n_ff.to_csv(Path(csvs,"fossil_fuels.csv"))
-    n_capa.to_csv(Path(csvs,"capacities.csv"))
-    capa_country.to_csv(Path(csvs,"capacities_countries.csv"))
-    
-    #extract profiles
-    n_loads.to_csv(Path(csvs,"loads_profiles.csv"))
-    n_profile.to_csv(Path(csvs,"generation_profiles.csv"))
-    n_costs.to_csv(Path(csvs,'costs_countries.csv'))
-    
-    #extract country specific
-    ACDC_countries.to_csv(Path(csvs,"grid_capacity_countries.csv"))
-    H2_countries.to_csv(Path(csvs,"H2_network_capacity_countries.csv"))
-    capa_country.to_csv(Path(csvs,"units_capacity_countries.csv"))
+    #Todo : put in a separate function
+    if export :
+        #extract
+        csvs.mkdir(parents=True, exist_ok=True)
+        for csv in [csvs,Path(path,'csvs_for_graphs')]:
+            n_capa.to_csv(Path(csv,"capacities.csv"))
+            capa_country.to_csv(Path(csv,"capacities_countries.csv"))
+            n_prod.to_csv(Path(csv,"power_production_capacities.csv"))
+            n_res_pot.to_csv(Path(csv,"res_potentials.csv"))
+            n_res.to_csv(Path(csv,"res_capacities.csv"))
+            ACDC_grid.to_csv(Path(csv,"grid_capacity.csv"))
+            H2_grid.to_csv(Path(csv,"H2_network_capacity.csv"))
+            n_bal.to_csv(Path(csv,"power_balance_capacities.csv"))
+            n_gas.to_csv(Path(csv,"gas_phase_out.csv"))
+            n_ff.to_csv(Path(csv,"fossil_fuels.csv"))
+            
+            
+            #extract profiles
+            n_loads.to_csv(Path(csv,"loads_profiles.csv"))
+            n_profile.to_csv(Path(csv,"generation_profiles.csv"))
+            n_costs.to_csv(Path(csv,'costs_countries.csv'))
+            
+            #extract country specific
+            ACDC_countries.to_csv(Path(csv,"grid_capacity_countries.csv"))
+            H2_countries.to_csv(Path(csv,"H2_network_capacity_countries.csv"))
+            capa_country.to_csv(Path(csv,"units_capacity_countries.csv"))
+            logger.info(f"Exported files to folder : {csvs}")
     return 
 
 def extract_loads(n):
@@ -494,7 +500,7 @@ if __name__ == "__main__":
     path = Path("analysis", "CANEurope_industry_no_SMR_oil_3H")
     
     simpl = 181
-    cluster = 37
+    cluster = '37m'
     opts = ""
     sector_opts = "3H"
     ll = "v3.0"
@@ -517,10 +523,16 @@ if __name__ == "__main__":
     eu25_countries = ["AT", "BE", "BG", "HR", "CZ", "DK", "EE", "FI", "FR", "DE", "HU", 'GR', "IE", "IT", "LV", "LT",
             "LU", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"]
     n_path = Path(path,"results")
-    n_name = "elec_s181_37m_lv3.0__3H-I_"
-    csvs = Path(path,"csvs_for_graphs")
+    n_name = f"elec_s{simpl}_{cluster}_l{ll}_{opts}_{sector_opts}_"
+    
+    csvs = Path(path,"csvs_for_graphs_"+n_name)
     
     countries= None #["BE","DE","FR","UK"]
-    logger.info(f"Extracting from {path}")
-    extract_graphs(years,n_path,n_name,countries=eu25_countries)
+    export = True
+    if csvs.exists() and csvs.is_dir() and export:
+        logger.info("Folder already existing. Make sure to backup any data needed before extracting new ones")
+    else :
+        countries= None #["BE","DE","FR","UK"]
+        logger.info(f"Extracting from {path}")
+        extract_graphs(years,n_path,n_name,countries=eu25_countries,export=export)
     
