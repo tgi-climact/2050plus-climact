@@ -154,8 +154,10 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
         else:
             n_y_except = n_y_except[n_y_except.index.isin(carriers_links)]
         n_prod[y] = pd.concat([n_y, n_y_except])
-        
-    return pd.concat({k: ni.groupby(by="carrier").sum()/1e3 for k, ni in n_prod.items()},axis=1).fillna(0)
+    
+    df = pd.concat({k: ni.groupby(by="carrier").sum()/1e3 for k, ni in n_prod.items()},axis=1).fillna(0)
+    df.loc[df.index.str.contains('Haber-Bosch'),:] *= 4.415385    
+    return df
 
 def extract_res_potential_old(n):
     dfx = []
@@ -373,7 +375,8 @@ def extract_nodal_capacities(n):
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
     df_capa = df_capa.groupby(["unit_type","node","carrier"]).sum().reset_index(["carrier","unit_type"])
     df_capa = df_capa.loc[df_capa.unit_type.isin(["generators","links","storage_units"])]
-    df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()
+    df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()/1e3
+    df_capa.loc[(slice(None),'Haber-Bosch'),:] *= 4.415385
     return df_capa
 
 def extract_nodal_costs(n):
