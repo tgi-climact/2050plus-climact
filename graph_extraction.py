@@ -418,8 +418,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
             select_countries(n[y], countries)
             
     n_gas = extract_gas_phase_out(n,2030)
-    n_res_pot = extract_res_potential(n_hist)
-
+    n_res_pot = extract_res_potential_old(n)
         
     long_list_links = ["coal/lignite", "oil","CCGT","OCGT",
                     "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
