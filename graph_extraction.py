@@ -110,9 +110,14 @@ def extract_production_profiles(n, subset):
                             .groupby(axis=1,level=0)
                             .sum()).T
  
-        profiles.append(pd.concat({y: pd.concat(n_y_t_co)}, names=['Year']))
+        profiles.append(pd.concat({y: pd.concat(n_y_t_co)}, names=['Year','Country','Carrier']))
         
     df = pd.concat(profiles)
+    df.insert(0,column="Annual sum [TWh]",value= df.sum(axis=1)/1e6*8760/len(ni.snapshots))
+    df.loc[(slice(None),slice(None),'Haber-Bosch'),:] *= 4.415385    
+    df.insert(0,column="units",value= "MWh_e")
+    df.loc[(slice(None),slice(None),['Haber-Bosch','ammonia cracker']),'units'] = 'MWh_lhv,nh3'
+    df.loc[(slice(None),slice(None),['Sabatier']),'units'] = 'MWh_lhv,h2'
     return df
 
 def extract_production_units(n,subset_gen=None,subset_links=None):
@@ -156,7 +161,15 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
         n_prod[y] = pd.concat([n_y, n_y_except])
     
     df = pd.concat({k: ni.groupby(by="carrier").sum()/1e3 for k, ni in n_prod.items()},axis=1).fillna(0)
-    df.loc[df.index.str.contains('Haber-Bosch'),:] *= 4.415385    
+    
+    if 'Haber-Bosch' in df.index: 
+        df.loc['Haber-Bosch',:] *= 4.415385    
+    df["units"] = "GW_e"
+    
+    unit_change = {'Haber-Bosch' : 'GW_lhv,nh3','ammonia cracker': 'GW_lhv,nh3','Sabatier': 'GW_lhv,h2'}
+    for i,j in unit_change.items():
+        if i in df.index:
+            df.loc[i,'units'] = j
     return df
 
 def extract_res_potential_old(n):
@@ -185,7 +198,7 @@ def extract_res_potential_old(n):
         ], axis=1)
     df_potential["potential"] = df_potential["p_nom_max"] + df_potential["p_nom_opt"]
     df_potential = df_potential.reset_index().pivot(index="carrier", columns="planning horizon", values="potential")
-
+    df_potential["units"] = "GW_e"
     return df_potential
   
 def extract_res_potential(n):
@@ -210,7 +223,7 @@ def extract_res_potential(n):
     df_potential = pd.DataFrame()
     df_potential["potential"] = dfx["p_nom_max"]
     df_potential = df_potential.reset_index().pivot(index="carrier", columns="planning horizon", values="potential")
-
+    df_potential["units"] = "GW_e"
     return df_potential
   
 def extract_transmission_AC_DC(n, n_path, n_name):
@@ -251,6 +264,8 @@ def extract_transmission_AC_DC(n, n_path, n_name):
         
     df = pd.concat(capacity,axis=1)
     df_co = pd.concat(capacity_countries,axis=0)
+    df["units"] = "GW_e"
+    df_co["units"] = "GW_e"
     return df,df_co,n_hist
 
 def extract_transmission_H2(n):
@@ -278,6 +293,8 @@ def extract_transmission_H2(n):
 
     df = pd.concat(capacity,axis=1)
     df_co = pd.concat(capacity_countries,axis=0)
+    df["units"] = "GW_lhv,h2"
+    df_co["units"] = "GW_lhv,h2"
     return df,df_co
 
 def extract_storage_units(n, color_shift):
@@ -344,7 +361,7 @@ def extract_gas_phase_out(n, year, subset=None):
         .pivot(index="country", columns="build_year", values="p_carrier_nom_opt")
         .sort_values(by=year, ascending=False)
     ) / 1e3 # GW
-    
+    n_cgt['units'] = 'GW_e'
     return n_cgt[n_cgt[year] >= 1]
 
 def extract_nodal_capacities(n):
@@ -376,7 +393,14 @@ def extract_nodal_capacities(n):
     df_capa = df_capa.groupby(["unit_type","node","carrier"]).sum().reset_index(["carrier","unit_type"])
     df_capa = df_capa.loc[df_capa.unit_type.isin(["generators","links","storage_units"])]
     df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()/1e3
-    df_capa.loc[(slice(None),'Haber-Bosch'),:] *= 4.415385
+    
+    df_capa.loc[(slice(None),'Haber-Bosch'),:] *= 4.415385    
+    df_capa['units'] = 'GW_e'
+    df_capa.loc[(slice(None),['Haber-Bosch','ammonia cracker']),'units'] = 'GW_lhv,nh3'
+    df_capa.loc[(slice(None),['Sabatier']),'units'] = 'GW_lhv,h2'
+    df_capa.loc[(slice(None),['gas']),'units'] = 'GW_lhv,ch4'
+    df_capa.loc[(slice(None),['oil','coal/lignite','uranium']),'units'] = 'GW_lhv'
+
     return df_capa
 
 def extract_nodal_costs(n):
@@ -392,10 +416,11 @@ def extract_nodal_costs(n):
     df = df.set_index(['Type','Cost','Country','Tech'])
     df = df.fillna(0).groupby(['Type','Cost','Country','Tech']).sum()
     df = df.loc[~df.apply(lambda x : x<1e3).all(axis=1)]
+    df.insert(0,column="units",value="Euro")
     return df
     
 def extract_graphs(years, n_path, n_name, countries=None, subset_production=None,
-                   subset_balancing=None, color_shift = {2030:"C0",2035:"C2",2040:"C1"},export=False):
+                   subset_balancing=None, color_shift = {2030:"C0",2035:"C1",2040:"C2"},export=False):
     
     n = {}
     for y in years:
@@ -411,7 +436,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     n_sto = extract_storage_units(n,color_shift)
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
     H2_grid,H2_countries = extract_transmission_H2(n)
-    n_costs = extract_nodal_costs(n,countries)
+    n_costs = extract_nodal_costs(n)
     
     for y in years:
         if countries:
@@ -450,14 +475,13 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         #extract
         csvs.mkdir(parents=True, exist_ok=True)
         for csv in [csvs,Path(path,'csvs_for_graphs')]:
-            n_capa.to_csv(Path(csv,"capacities.csv"))
-            capa_country.to_csv(Path(csv,"capacities_countries.csv"))
+            n_capa.to_csv(Path(csv,"unit_capacities.csv"))
             n_sto.savefig(Path(csv,"storage_unit.png"))
             n_prod.to_csv(Path(csv,"power_production_capacities.csv"))
             n_res_pot.to_csv(Path(csv,"res_potentials.csv"))
             n_res.to_csv(Path(csv,"res_capacities.csv"))
-            ACDC_grid.to_csv(Path(csv,"grid_capacity.csv"))
-            H2_grid.to_csv(Path(csv,"H2_network_capacity.csv"))
+            ACDC_grid.to_csv(Path(csv,"grid_capacities.csv"))
+            H2_grid.to_csv(Path(csv,"H2_network_capacities.csv"))
             n_bal.to_csv(Path(csv,"power_balance_capacities.csv"))
             n_gas.to_csv(Path(csv,"gas_phase_out.csv"))
             n_ff.to_csv(Path(csv,"fossil_fuels.csv"))
@@ -482,15 +506,19 @@ def extract_loads(n):
         loads_t.index.names= ['Load']
         loads_t["country"] = ni.buses.loc[ni.loads.loc[loads_t.index].bus].country.values
         loads_t.reset_index(inplace=True)
-        loads_t["Load"].mask(loads_t["Load"].str.contains("NH3"),"NH3 for industry",inplace=True)
-        loads_t["Load"].mask(loads_t["Load"].str.contains("H2"),"H2 for industry",inplace=True)
-        loads_t["Load"].mask(loads_t["Load"].str.contains("industry electricity"),"Industry",inplace=True)
-        loads_t["Load"].where(loads_t["Load"].str.contains("industry"),"Load",inplace=True)
+        loads_t["Load"].mask(loads_t["Load"].str.contains("NH3"),"NH3 for sectors",inplace=True)
+        loads_t["Load"].mask(loads_t["Load"].str.contains("H2"),"H2 for sectors",inplace=True)
+        loads_t["Load"].where(loads_t["Load"].str.contains("sectors"),"Electricity demand for sectors",inplace=True)
         
         loads_t = loads_t.groupby(["country","Load"]).sum()
         loads_t.insert(0,column="Annual sum [TWh]",value= loads_t.sum(axis=1)/1e6*8760/len(ni.snapshots))
         profiles[y] = loads_t
-    return pd.concat(profiles,names=["Years"])
+        
+    df =  pd.concat(profiles,names=["Years"])
+    df.insert(0,column="units",value= 'MW_e')
+    df.loc[(slice(None),slice(None),'H2 for sectors'),'units'] = 'MW_lhv,h2'
+    df.loc[(slice(None),slice(None),'NH3 for sectors'),'units'] = 'MW_lhv,nh3'
+    return df
     
 if __name__ == "__main__":
     
