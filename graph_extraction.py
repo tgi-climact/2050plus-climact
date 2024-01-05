@@ -531,7 +531,7 @@ if __name__ == "__main__":
     path = Path("analysis", "CANEurope_industry_no_SMR_oil_3H")
     
     simpl = 181
-    cluster = '37m'
+    cluster = 37
     opts = ""
     sector_opts = "3H"
     ll = "v3.0"
