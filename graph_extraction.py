@@ -154,7 +154,8 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
         n_y = pd.concat([
             ni.links.groupby(by="carrier").sum().p_carrier_nom_opt,
             ni.generators.groupby(by="carrier").sum().p_nom_opt, 
-            ni.storage_units.groupby(by="carrier").sum().p_nom_opt
+            ni.storage_units.groupby(by="carrier").sum().p_nom_opt,
+            ni.stores.groupby(by="carrier").sum().e_nom_opt
         ])
         n_y = n_y.rename(index=renamer)
         
@@ -178,7 +179,7 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
         df.loc['Haber-Bosch',:] *= 4.415385    
     df["units"] = "GW_e"
     
-    unit_change = {'Haber-Bosch' : 'GW_lhv,nh3','ammonia cracker': 'GW_lhv,nh3','Sabatier': 'GW_lhv,h2'}
+    unit_change = {'Haber-Bosch' : 'GW_lhv,nh3','ammonia cracker': 'GW_lhv,nh3','Sabatier': 'GW_lhv,h2', 'H2 Store' : "GWh_lhv,h2"}
     for i,j in unit_change.items():
         if i in df.index:
             df.loc[i,'units'] = j
@@ -403,13 +404,14 @@ def extract_nodal_capacities(n):
     
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
     df_capa = df_capa.groupby(["unit_type","node","carrier"]).sum().reset_index(["carrier","unit_type"])
-    df_capa = df_capa.loc[df_capa.unit_type.isin(["generators","links","storage_units"])]
+    df_capa = df_capa.query('unit_type in ["generators","links","storage_units"] or carrier == "H2 Store"')
     df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()/1e3
     
     df_capa.loc[(slice(None),'Haber-Bosch'),:] *= 4.415385    
     df_capa['units'] = 'GW_e'
     df_capa.loc[(slice(None),['Haber-Bosch','ammonia cracker']),'units'] = 'GW_lhv,nh3'
     df_capa.loc[(slice(None),['Sabatier']),'units'] = 'GW_lhv,h2'
+    df_capa.loc[(slice(None),['H2 Store']),'units'] = 'GWh_lhv,h2'
     df_capa.loc[(slice(None),['gas']),'units'] = 'GW_lhv,ch4'
     df_capa.loc[(slice(None),['oil','coal/lignite','uranium']),'units'] = 'GW_lhv'
 
