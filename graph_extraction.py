@@ -450,6 +450,26 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         assign_countries(n[y])
         change_p_nom_opt_carrier(n[y])
 
+
+    #get historical capacities
+    n_bf = pypsa.Network(Path(n_path, "prenetworks-brownfield", n_name + f"{2030}.nc"))
+    assign_countries(n_bf)
+    assign_carriers(n_bf)
+    assign_locations(n_bf)
+    n_bf.generators = n_bf.generators.query('build_year <2026')
+    n_bf.links = n_bf.links.query('build_year <2026')
+    n_bf.storage_units = n_bf.storage_units.query('build_year <2026')
+    n_bf.generators.p_nom_opt = n_bf.generators.p_nom
+    n_bf.links.p_nom_opt = n_bf.links.p_nom
+    n_bf.storage_units.p_nom_opt = n_bf.storage_units.p_nom
+    n_bf.lines.carrier = "AC"
+    n_bf.lines.s_nom_opt = n_bf.lines.s_nom_min
+    n_bf.links.loc[n_bf.links.carrier.isin(["DC"]),'p_nom_opt'] = n_bf.links.loc[n_bf.links.carrier.isin(["DC"]),'p_nom_min']
+    change_p_nom_opt_carrier(n_bf)
+    n_ext = n.copy()
+    n_ext['hist'] = n_bf.copy()
+
+    plt.close('all')
     #Extract full country list before selection of countries
     capa_country = extract_nodal_capacities(n)
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
@@ -466,28 +486,29 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
                                  both=True,unit={"H2 Fuel Cell" : "[GW_e]", "H2 Electrolysis" : "[GW_e]","H2 Store" : "[TWh_lhv,h2]"})
     n_costs = extract_nodal_costs(n)
     
-    for y in years:
     n_profile  = extract_production_profiles(n, 
                                      subset = LONG_LIST_LINKS + LONG_LIST_GENS)
+    
+    
+    for v in n.values():
         if countries:
-            select_countries(n[y], countries)
+            select_countries(v, countries)
+            
+    for v in n_ext.values():
+        if countries:
+            select_countries(v,countries)
             
     n_gas = extract_gas_phase_out(n,2030)
     n_res_pot = extract_res_potential_old(n)
-        
     
-    
-    #country specific extracts   
-   
-    n_prod = extract_production_units(n)
-    n_res = extract_production_units(n,subset_gen = ["solar","onwind","offwind","ror"],
+    #country specific extracts 
+    n_prod = extract_production_units(n_ext)
+    n_res = extract_production_units(n_ext,subset_gen = ["solar","onwind","offwind","ror"],
                                      subset_links = [""])
-    n_bal = extract_production_units(n,subset_gen = [""], 
+    n_bal = extract_production_units(n_ext,subset_gen = [""], 
                                      subset_links = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
                                                         "ammonia cracker", "helmeth", "SMR", "SMR CC"])
-    n_ff  = extract_production_units(n,subset_gen = [""], 
-                                     subset_links = ["coal/lignite", "oil", "CCGT","OCGT"] )
     n_capa = extract_production_units(n_ext,subset_gen = LONG_LIST_GENS ,
                                              subset_links = LONG_LIST_LINKS)
 
@@ -508,7 +529,6 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
             H2_grid.to_csv(Path(csv,"H2_network_capacities.csv"))
             n_bal.to_csv(Path(csv,"power_balance_capacities.csv"))
             n_gas.to_csv(Path(csv,"gas_phase_out.csv"))
-            n_ff.to_csv(Path(csv,"fossil_fuels.csv"))
             
             
             #extract profiles
