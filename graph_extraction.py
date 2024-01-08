@@ -141,8 +141,7 @@ def extract_production_profiles(n, subset):
 
 def extract_production_units(n,subset_gen=None,subset_links=None):
 
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-                "solar rooftop": "solar", "coal": "coal/lignite",
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
                 "lignite": "coal/lignite","ror" : "hydro",
                 'urban central biomass CHP' : 'biomass CHP'}  
     dischargers = ["battery discharger", "home battery discharger"]
@@ -286,7 +285,7 @@ def extract_transmission_AC_DC(n, n_path, n_name):
     df_co = pd.concat(capacity_countries,axis=0)
     df["units"] = "GW_e"
     df_co["units"] = "GW_e"
-    return df,df_co,n_hist
+    return df, df_co, n_hist
 
 def extract_transmission_H2(n):
     # Add projected values
@@ -309,6 +308,7 @@ def extract_transmission_H2(n):
         capacity_countries.append(pd.concat({y: H2_per_country}, names=['Year']))
         
         H2_total = pd.DataFrame(H2_pipelines.groupby("carrier").p_nom_opt.sum())/1e3
+        H2_total.rename({"H2 pipeline":"H2 pipeline new"})
         capacity.append(H2_total.rename(columns={'p_nom_opt':y}))
 
     df = pd.concat(capacity,axis=1)
@@ -383,8 +383,7 @@ def extract_gas_phase_out(n, year, subset=None):
     return n_cgt[n_cgt[year] >= 1]
 
 def extract_nodal_capacities(n):
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-               "solar rooftop": "solar", "coal": "coal/lignite",
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
                "lignite": "coal/lignite","ror" : "hydro",
                'urban central biomass CHP' : 'biomass CHP'} 
     dischargers = ["battery discharger", "home battery discharger"]
@@ -472,8 +471,6 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     plt.close('all')
     #Extract full country list before selection of countries
     capa_country = extract_nodal_capacities(n)
-    ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
-    H2_grid,H2_countries = extract_transmission_H2(n)
     storage_function = {"hydro" : "get_state_of_charge_t", "PHS" : "get_state_of_charge_t"}
     storage_horizon = {"hydro" : "LT", "PHS" : "ST", "H2 Store" : "LT",
             "battery" : "ST", "home battery" : "ST",
@@ -484,6 +481,8 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     storage_horizon = {"H2 Fuel Cell" : "LT", "H2 Electrolysis" : "LT", "H2 Store" : "LT"}
     n_h2 = extract_storage_units(n,color_shift,storage_function,storage_horizon,
                                  both=True,unit={"H2 Fuel Cell" : "[GW_e]", "H2 Electrolysis" : "[GW_e]","H2 Store" : "[TWh_lhv,h2]"})
+    ACDC_grid, ACDC_countries, n_hist = extract_transmission_AC_DC(n,n_path,n_name)
+    H2_grid, H2_countries = extract_transmission_H2(n)
     n_costs = extract_nodal_costs(n)
     
     n_profile  = extract_production_profiles(n, 
