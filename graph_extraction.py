@@ -602,10 +602,11 @@ if __name__ == "__main__":
     csvs = Path(path,"csvs_for_graphs_"+n_name)
     
     countries= None #["BE","DE","FR","UK"]
-    export = True
+    export = 'y'
     if csvs.exists() and csvs.is_dir() and export:
-        logger.info("Folder already existing. Make sure to backup any data needed before extracting new ones")
-    else :
+        export = str(input("Folder already existing. Make sure to backup any data needed before extracting new ones. Do you want to continue (y/n)?"))
+    if ('y' in export) or ('Y' in export):
+        export = True
         countries= None #["BE","DE","FR","UK"]
         logger.info(f"Extracting from {path}")
         extract_graphs(years,n_path,n_name,countries=eu25_countries,export=export)
