@@ -29,6 +29,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+LONG_LIST_LINKS = ["coal/lignite", "oil","CCGT","OCGT",
+                "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
+                   "home battery charger", "Haber-Bosch", "Sabatier", 
+                   "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+
+LONG_LIST_GENS = ["solar", "onwind", "offwind", "ror", "nuclear", "biomass CHP"]
+
+
+
+
+
 def reduce_to_countries(df,index):
     buses = [c for c in df.columns if "bus" in c]
     return df.loc[df.loc[:,buses].applymap(lambda x : x in index).values.any(axis=1)]
@@ -439,23 +451,18 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
     n_costs = extract_nodal_costs(n)
     
     for y in years:
+    n_profile  = extract_production_profiles(n, 
+                                     subset = LONG_LIST_LINKS + LONG_LIST_GENS)
         if countries:
             select_countries(n[y], countries)
             
     n_gas = extract_gas_phase_out(n,2030)
     n_res_pot = extract_res_potential_old(n)
         
-    long_list_links = ["coal/lignite", "oil","CCGT","OCGT",
-                    "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
-                       "home battery charger", "Haber-Bosch", "Sabatier", 
-                       "ammonia cracker", "helmeth", "SMR", "SMR CC"]
     
-    long_list_gens = ["solar", "onwind", "offwind", "ror", "nuclear", "biomass CHP"]
     
     #country specific extracts   
    
-    n_profile  = extract_production_profiles(n, 
-                                     subset = long_list_links + long_list_gens)
     n_prod = extract_production_units(n)
     n_res = extract_production_units(n,subset_gen = ["solar","onwind","offwind","ror"],
                                      subset_links = [""])
@@ -463,10 +470,10 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
                                      subset_links = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                                                         "home battery charger", "Haber-Bosch", "Sabatier", 
                                                         "ammonia cracker", "helmeth", "SMR", "SMR CC"])
-    n_capa = extract_production_units(n,subset_gen = long_list_gens ,
-                                             subset_links = long_list_links)
     n_ff  = extract_production_units(n,subset_gen = [""], 
                                      subset_links = ["coal/lignite", "oil", "CCGT","OCGT"] )
+    n_capa = extract_production_units(n_ext,subset_gen = LONG_LIST_GENS ,
+                                             subset_links = LONG_LIST_LINKS)
 
     n_loads = extract_loads(n)
 
