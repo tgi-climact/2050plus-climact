@@ -62,14 +62,21 @@ def get_state_of_charge_t(n, carrier):
     df = df.merge(n.storage_units.reset_index()[["carrier", "StorageUnit"]], on="StorageUnit")
     df = df.groupby(by="carrier").sum()
     df.drop(columns=["StorageUnit"],inplace=True)
-    return df.T[[carrier]]
+    return df.T[[carrier]]/1e6
 
 def get_e_t(n, carrier):
     df = n.stores_t.e.T.reset_index()
     df = df.merge(n.stores.reset_index()[["carrier", "Store"]], on="Store")
     df = df.groupby(by="carrier").sum()
     df.drop(columns=["Store"],inplace=True)
-    return df.T[[carrier]]
+    return df.T[[carrier]]/1e6
+
+def get_p_carrier_nom_t(n, carrier):
+    df = n.links_t.p_carrier_nom_opt.T.reset_index()
+    df = df.merge(n.links.reset_index()[["carrier", "Link"]], on="Link")
+    df = df.groupby(by="carrier").sum()
+    df.drop(columns=["Link"],inplace=True)
+    return df.T[[carrier]]/1e3
 
 def extract_production_profiles(n, subset):
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
@@ -310,23 +317,18 @@ def extract_transmission_H2(n):
     df_co["units"] = "GW_lhv,h2"
     return df,df_co
 
-def extract_storage_units(n, color_shift):
+def extract_storage_units(n, color_shift,storage_function,storage_horizon,both=False,unit={}):
     n_store = {}
-    storage_function = {"hydro" : "get_state_of_charge_t", "PHS" : "get_state_of_charge_t"}
-    storage_horizon = {"hydro" : "LT", "PHS" : "ST", "H2 Store" : "LT",
-            "battery" : "ST", "home battery" : "ST",
-            "ammonia store" : "LT"}
     
     carrier = list(storage_horizon.keys())
     
-    plt.close('all')
     fig = plt.figure(figsize=(14,8))
-    def plotting(ax,title,data,y):
+    def plotting(ax,title,data,y,unit):
         ax.plot(data,label = y,color=color_shift.get(y))
         ax.set_title(title)
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        ax.set_ylabel("[TWh]", ha='left', y=1.1, rotation=0, labelpad=0.2)
+        ax.set_ylabel(unit, ha='left', y=1.1, rotation=0, labelpad=0.2)
         plt.xticks(rotation=30)
         plt.tight_layout()
         return 
@@ -335,17 +337,20 @@ def extract_storage_units(n, color_shift):
         lt = {}
         st = {}
         for car in carrier:
-            storage = globals()[storage_function.get(car,"get_e_t")](ni, car)/1e6
-            if "L" in storage_horizon.get(car):
+            storage = globals()[storage_function.get(car,"get_e_t")](ni, car)
+            if both:
+                lt[car] = storage
+                st[car] = storage.iloc[:int(8*31)] 
+            elif "L" in storage_horizon.get(car):
                 lt[car] = storage
             else:
                 st[car] = storage.iloc[:int(8*31)]    
         for i,(car,s) in enumerate(st.items()) :
             ax = plt.subplot(3,2,2*i+1)
-            plotting(ax,car,s,y)
+            plotting(ax,car,s,y,unit=unit.get(car,'[TWh]'))
         for i,(car,l) in enumerate((lt).items()) :
             ax = plt.subplot(3,2,2*(i+1))
-            plotting(ax,car,l,y)
+            plotting(ax,car,l,y,unit=unit.get(car,'[TWh]'))
 
     ax.legend()
     return fig
@@ -447,9 +452,18 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
 
     #Extract full country list before selection of countries
     capa_country = extract_nodal_capacities(n)
-    n_sto = extract_storage_units(n,color_shift)
     ACDC_grid,ACDC_countries,n_hist = extract_transmission_AC_DC(n,n_path,n_name)
     H2_grid,H2_countries = extract_transmission_H2(n)
+    storage_function = {"hydro" : "get_state_of_charge_t", "PHS" : "get_state_of_charge_t"}
+    storage_horizon = {"hydro" : "LT", "PHS" : "ST", "H2 Store" : "LT",
+            "battery" : "ST", "home battery" : "ST",
+            "ammonia store" : "LT"}
+    n_sto = extract_storage_units(n,color_shift,storage_function,storage_horizon)
+    #h2 
+    storage_function = {"H2 Fuel Cell" : "get_p_carrier_nom_t", "H2 Electrolysis" : "get_p_carrier_nom_t"}
+    storage_horizon = {"H2 Fuel Cell" : "LT", "H2 Electrolysis" : "LT", "H2 Store" : "LT"}
+    n_h2 = extract_storage_units(n,color_shift,storage_function,storage_horizon,
+                                 both=True,unit={"H2 Fuel Cell" : "[GW_e]", "H2 Electrolysis" : "[GW_e]","H2 Store" : "[TWh_lhv,h2]"})
     n_costs = extract_nodal_costs(n)
     
     for y in years:
@@ -486,6 +500,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
         for csv in [csvs,Path(path,'csvs_for_graphs')]:
             n_capa.to_csv(Path(csv,"unit_capacities.csv"))
             n_sto.savefig(Path(csv,"storage_unit.png"))
+            n_h2.savefig(Path(csv,"h2_production.png"))
             n_prod.to_csv(Path(csv,"power_production_capacities.csv"))
             n_res_pot.to_csv(Path(csv,"res_potentials.csv"))
             n_res.to_csv(Path(csv,"res_capacities.csv"))

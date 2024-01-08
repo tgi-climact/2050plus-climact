@@ -57,7 +57,7 @@ def searcher(x,carrier):
         else:
             return np.nan
 
-def change_p_nom_opt_carrier(n,carriers=['AC']):
+def change_p_nom_opt_carrier(n,carriers=['AC'],temporal=True):
     """
     This function expresses for each asset p_nom_opt (whose carrier is not always the same)
     in function of the given carrier, considering the efficiency
@@ -97,7 +97,8 @@ def change_p_nom_opt_carrier(n,carriers=['AC']):
         efficiency_map = efficiency_map.loc[index_map.index]
         efficiency_map = efficiency_map.apply(lambda x: x / x[f"efficiency{index_map.loc[x.name]}"], axis=1)
         li.loc[efficiency_map.index, "p_carrier_nom_opt"] = li.loc[efficiency_map.index, "p_nom_opt"] / efficiency_map["efficiency0"]    
-        li_t.p_carrier_nom_opt.loc[:,efficiency_map.index] = li_t.p0.loc[:,efficiency_map.index] / efficiency_map["efficiency0"]
+        if len(li_t.p0.columns):
+            li_t.p_carrier_nom_opt.loc[:,efficiency_map.index] = li_t.p0.loc[:,efficiency_map.index] / efficiency_map["efficiency0"]
         
     return
 
