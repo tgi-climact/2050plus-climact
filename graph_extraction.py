@@ -30,12 +30,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-LONG_LIST_LINKS = ["coal/lignite", "oil","CCGT","OCGT",
+LONG_LIST_LINKS = ["coal/lignite", "oil", "CCGT", "OCGT",
                 "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                    "home battery charger", "Haber-Bosch", "Sabatier", 
-                   "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+                   "ammonia cracker", "helmeth", "SMR", "SMR CC", "hydro"]
 
-LONG_LIST_GENS = ["solar", "onwind", "offwind", "ror", "nuclear", "biomass CHP"]
+LONG_LIST_GENS = ["solar","solar rooftop", "onwind", "offwind", "offwind-ac","offwind-dc",
+                  "ror", "nuclear", "urban central solid biomass CHP",
+                  "home battery", "battery", "H2 Store","ammonia store"]
 
 
 
@@ -46,7 +48,7 @@ def reduce_to_countries(df,index):
     return df.loc[df.loc[:,buses].applymap(lambda x : x in index).values.any(axis=1)]
 
 def select_countries(n,countries):
-    index = n.buses.loc[n.buses.country.isin(eu25_countries)].index
+    index = n.buses.loc[n.buses.country.isin(countries)].index
     n.generators = reduce_to_countries(n.generators,index)
     n.lines = reduce_to_countries(n.lines,index)
     n.links = reduce_to_countries(n.links,index)
@@ -79,9 +81,8 @@ def get_p_carrier_nom_t(n, carrier):
     return df.T[[carrier]]/1e3
 
 def extract_production_profiles(n, subset):
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-               "solar rooftop": "solar", "coal": "coal/lignite",
-               "lignite": "coal/lignite","ror" : "hydro"} 
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
+               "lignite": "coal/lignite", "ror" : "hydro", 'urban central solid biomass CHP' : 'biomass CHP'}  
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                        "home battery charger", "Haber-Bosch", "Sabatier", 
@@ -142,8 +143,7 @@ def extract_production_profiles(n, subset):
 def extract_production_units(n,subset_gen=None,subset_links=None):
 
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-                "lignite": "coal/lignite","ror" : "hydro",
-                'urban central biomass CHP' : 'biomass CHP'}  
+                "lignite": "coal/lignite", "ror" : "hydro", 'urban central biomass CHP' : 'biomass CHP'}  
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                         "home battery charger", "Haber-Bosch", "Sabatier", 
@@ -185,7 +185,8 @@ def extract_production_units(n,subset_gen=None,subset_links=None):
         df.loc['Haber-Bosch',:] *= 4.415385    
     df["units"] = "GW_e"
     
-    unit_change = {'Haber-Bosch' : 'GW_lhv,nh3','ammonia cracker': 'GW_lhv,nh3','Sabatier': 'GW_lhv,h2', 'H2 Store' : "GWh_lhv,h2"}
+    unit_change = {'Haber-Bosch' : 'GW_lhv,nh3','ammonia cracker': 'GW_lhv,nh3','Sabatier': 'GW_lhv,h2',
+                   'H2 Store' : "GWh_lhv,h2", "home battery" : "GWh_e", "battery" : "GWh_e"}
     for i,j in unit_change.items():
         if i in df.index:
             df.loc[i,'units'] = j
@@ -384,8 +385,7 @@ def extract_gas_phase_out(n, year, subset=None):
 
 def extract_nodal_capacities(n):
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-               "lignite": "coal/lignite","ror" : "hydro",
-               'urban central biomass CHP' : 'biomass CHP'} 
+               "lignite": "coal/lignite", "ror" : "hydro", 'urban central biomass CHP' : 'biomass CHP'} 
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                        "home battery charger", "Haber-Bosch", "Sabatier", 
@@ -408,14 +408,15 @@ def extract_nodal_capacities(n):
     
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
     df_capa = df_capa.groupby(["unit_type","node","carrier"]).sum().reset_index(["carrier","unit_type"])
-    df_capa = df_capa.query('unit_type in ["generators","links","storage_units"] or carrier == "H2 Store"')
+    df_capa = df_capa.query('unit_type in ["generators","links","storage_units"] or carrier in @LONG_LIST_GENS')
     df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()/1e3
     
     df_capa.loc[(slice(None),'Haber-Bosch'),:] *= 4.415385    
     df_capa['units'] = 'GW_e'
-    df_capa.loc[(slice(None),['Haber-Bosch','ammonia cracker']),'units'] = 'GW_lhv,nh3'
+    df_capa.loc[(slice(None),['Haber-Bosch', 'ammonia cracker']),'units'] = 'GW_lhv,nh3'
     df_capa.loc[(slice(None),['Sabatier']),'units'] = 'GW_lhv,h2'
     df_capa.loc[(slice(None),['H2 Store']),'units'] = 'GWh_lhv,h2'
+    df_capa.loc[(slice(None),['battery', 'home battery']),'units'] = 'GWh_e'
     df_capa.loc[(slice(None),['gas']),'units'] = 'GW_lhv,ch4'
     df_capa.loc[(slice(None),['oil','coal/lignite','uranium']),'units'] = 'GW_lhv'
 
