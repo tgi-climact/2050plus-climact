@@ -396,8 +396,8 @@ def extract_nodal_capacities(n):
                      "H2 pipeline", "H2 pipeline retrofitted", "electricity distribution grid"]
     balance_carriers_transmission_exclude = balance_exclude + carriers + transmissions + dischargers
     
-    for y in years:
-        df["nodal_capacities"] = calculate_nodal_capacities(n[y],y,df["nodal_capacities"])
+    for y, ni in n.items():
+        df["nodal_capacities"] = calculate_nodal_capacities(ni,y,df["nodal_capacities"])
         
     df_capa = (      df["nodal_capacities"]
                        .rename(renamer)         
@@ -470,7 +470,7 @@ def extract_graphs(years, n_path, n_name, countries=None, subset_production=None
 
     plt.close('all')
     #Extract full country list before selection of countries
-    capa_country = extract_nodal_capacities(n)
+    capa_country = extract_nodal_capacities(n_ext)
     storage_function = {"hydro" : "get_state_of_charge_t", "PHS" : "get_state_of_charge_t"}
     storage_horizon = {"hydro" : "LT", "PHS" : "ST", "H2 Store" : "LT",
             "battery" : "ST", "home battery" : "ST",
