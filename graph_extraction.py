@@ -8,11 +8,8 @@ Created on Thu Nov  9 15:35:07 2023
 from pathlib import Path
 import pypsa
 import pandas as pd
-import pylab
 import re
-from IPython.display import Image
 import matplotlib.pyplot as plt
-import numpy as np
 
 from make_summary import (change_p_nom_opt_carrier,
                             make_summaries,
@@ -22,8 +19,6 @@ from make_summary import (change_p_nom_opt_carrier,
                             assign_carriers,
                             assign_locations,
                             assign_countries)
-
-from prepare_sector_network import prepare_costs
 
 import logging
 
@@ -130,7 +125,7 @@ def extract_production_profiles(n, subset):
                             .groupby(axis=1,level=0)
                             .sum()).T
  
-        profiles.append(pd.concat({y: pd.concat(n_y_t_co)}, names=['Year','Country','Carrier']))
+        profiles.append(pd.concat({y: pd.concat(n_y_t_co)}, names=["Year",'Country',"Carrier"]))
         
     df = pd.concat(profiles)
     df.insert(0,column="Annual sum [TWh]",value= df.sum(axis=1)/1e6*8760/len(ni.snapshots))
@@ -275,7 +270,7 @@ def extract_transmission_AC_DC(n, n_path, n_name):
                           .groupby("carrier").p_nom_opt.sum()
 
         AC_DC_co =  pd.DataFrame.from_dict(AC_DC_co, orient = 'columns').fillna(0)/1e3
-        capacity_countries.append(pd.concat({y: AC_DC_co}, names=['Year']))
+        capacity_countries.append(pd.concat({y: AC_DC_co}, names=["Year"]))
         # for co in ni.buses.country.unique():
         #     lines_co[co] = n.lines[country_map_lines.apply(lambda L : L.str.contains(co).fillna(False)).any(axis=1)].s_nom_opt.sum()
             
@@ -306,7 +301,7 @@ def extract_transmission_H2(n):
             H2_per_country[co] = H2_pipelines[country_map.apply(lambda L : L.fillna('').str.contains(co)).any(axis=1)] \
                                 .groupby("carrier").p_nom_opt.sum()
         H2_per_country = pd.DataFrame.from_dict(H2_per_country, orient = 'columns').fillna(0)/1e3
-        capacity_countries.append(pd.concat({y: H2_per_country}, names=['Year']))
+        capacity_countries.append(pd.concat({y: H2_per_country}, names=["Year"]))
         
         H2_total = pd.DataFrame(H2_pipelines.groupby("carrier").p_nom_opt.sum())/1e3
         H2_total.rename({"H2 pipeline":"H2 pipeline new"})
@@ -409,7 +404,7 @@ def extract_nodal_capacities(n):
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
     df_capa = df_capa.groupby(["unit_type","node","carrier"]).sum().reset_index(["carrier","unit_type"])
     df_capa = df_capa.query('unit_type in ["generators","links","storage_units"] or carrier in @LONG_LIST_GENS')
-    df_capa = df_capa.drop(columns='unit_type').groupby(['node','carrier']).sum()/1e3
+    df_capa = df_capa.drop(columns='unit_type').groupby(['node',"carrier"]).sum()/1e3
     
     df_capa.loc[(slice(None),'Haber-Bosch'),:] *= 4.415385    
     df_capa['units'] = 'GW_e'

@@ -821,15 +821,9 @@ if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
 
-        snakemake = mock_snakemake("make_summary",configfiles="config.CANEurope.runner.yaml")
+        snakemake = mock_snakemake("make_summary")
 
     logging.basicConfig(level=snakemake.config["logging"]["level"])
-    snakemake.config["scenario"]["simpl"] = ['181']
-    snakemake.config["scenario"]["cluster"] = ["37m"]
-    snakemake.config["scenario"]["ll"] = ['v3.0']
-    snakemake.config["scenario"]["sector_opts"] = ['3H-I']
-    snakemake.config["scenario"]["planning_horizons"] = [2030,2035,2040]
-    snakemake.params.RDIR = "CANEurope_allam_false_nuc_phase_out_costs_up_v1_5_no_dac_irena_phase_out_config_social16_industry_test2"
 
     networks_dict = {
         (cluster, ll, opt + sector_opt, planning_horizon): "results/"
