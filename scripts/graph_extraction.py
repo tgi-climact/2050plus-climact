@@ -432,7 +432,7 @@ def extract_nodal_costs():
                       skiprows=3,
                       header=0)
           .reset_index()
-          .rename(columns={"planning_horizon" : "Type",
+          .rename(columns={"planning_horizon": "Type",
                            "level_1": "Cost",
                            "level_2": "Country",
                            "level_3": "Tech"})
@@ -535,7 +535,6 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
 
     n_res_pot = extract_res_potential(n)
 
-
     # country specific extracts
     n_prod = extract_production_units(n_ext)
     n_res = extract_production_units(n_ext, subset_gen=["solar", "onwind", "offwind", "ror"],
@@ -552,7 +551,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # Todo : put in a separate function
     # extract
     csvs.mkdir(parents=True, exist_ok=True)
-    for csv in [csvs, Path(path, 'csvs_for_graphs')]:
+    for csv in [csvs, Path(path, dir_export)]:
         n_capa.to_csv(Path(csv, "unit_capacities.csv"))
         n_sto.savefig(Path(csv, "storage_unit.png"))
         n_h2.savefig(Path(csv, "h2_production.png"))
@@ -577,10 +576,274 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     return
 
 
+def load_gas_phase_out():
+    return (
+        pd.read_csv(Path(path, dir_export, "gas_phase_out.csv"), header=0)
+        .reindex(columns=["country", "historical", "2030", "units"])
+        .rename(columns={"historical": "Historical"})
+    )
+
+
+def load_res_capacities():
+    return (
+        pd.read_csv(Path(path, dir_export, "res_capacities.csv"), header=0)
+    )
+
+
+def load_production_eu27():
+    return (
+        pd.read_csv(Path(path, dir_export, "power_production_capacities.csv"), header=0)
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+        .replace({"CCGT": "gas", "OCGT": "gas"})
+        .groupby(by="carrier").sum().reset_index()
+        .query("carrier not in ['home battery', 'ammonia store', 'battery', 'co2 stored', 'H2 Store']")
+    )
+
+
+def load_production_total():
+    return (
+        pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .replace({"CCGT": "gas", "OCGT": "gas"})
+        .query("carrier in ['gas', 'hydro', 'nuclear', 'offwind', 'carrier', 'PHS', "
+               "'solar', 'solar rooftop', 'urban central biomass CHP']")
+        .groupby(by="carrier").sum().reset_index()
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+    )
+
+
+def load_balance_total():
+    return (
+        pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
+               "'Haber-Bosch', 'home battery charger']")
+        .groupby(by="carrier").agg({"hist": "sum", "2030": "sum", "2035": "sum", "2040": "sum", "units": "first"})
+        .reset_index()
+    )
+
+
+def load_balance_eu27():
+    return (
+        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
+        .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
+               "'Haber-Bosch', 'home battery charger']")
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
+    )
+
+
+def load_grid_capacity():
+    return (
+        pd.read_csv(Path(path, dir_export, "grid_capacities.csv"), header=0)
+        .reindex(columns=["carrier", "Historical", "2030", "2035", "2040"])
+    )
+
+
+def load_res_potentials():
+    return (
+        pd.read_csv(Path(path, dir_export, "grid_capacities.csv"), header=0)
+        .drop(columns=["2030", "2035"])
+        .reindex(columns=["carrier", "Historical", "2040", "units"])
+    )
+
+
+def load_h2_network_capacity():
+    return (
+        pd.read_csv(Path(path, dir_export, "H2_network_capacities.csv"), header=0)
+        .reindex("carrier", "hist", "2030", "2035", "2040", "units")
+    )
+
+
+def load_fossil_fuels():
+    return (
+        pd.read_csv(Path(path, dir_export, "fossil_fuels.csv"), header=0)
+        .reindex("carrier", "hist", "2030", "2035", "2040", "units")
+    )
+
+
+def load_costs_total():
+    return (
+        pd.read_csv(Path(path, dir_export, "costs_countries.csv"), header=0)
+    )
+
+
+def load_costs_res():
+    # ToDo Add segments and subsegments
+    return pd.DataFrame()
+    # return (
+    #     pd.read_csv(Path(path, dir_export, "costs_countries.csv"), header=0)
+    #     .query("segment = 'RES'")
+    #     .drop(columns=["Type", "Cost", "Country", "Tech", "segment"])
+    #     .groupby(by="Subsegment").sum().reset_index()
+    # )
+
+
+def load_costs_flex():
+    # ToDo Add segments and subsegments
+    return pd.DataFrame()
+    # return (
+    #     pd.read_csv(Path(path, dir_export, "costs_countries.csv"), header=0)
+    #     .query("segment = 'Flex'")
+    #     .drop(columns=["Type", "Cost", "Country", "Tech", "segment"])
+    #     .groupby(by="Subsegment").sum().reset_index()
+    # )
+
+
+def load_costs_segments():
+    # ToDo Add segments and subsegments
+    return pd.DataFrame()
+    # return (
+    #     pd.read_csv(Path(path, dir_export, "costs_countries.csv"), header=0)
+    #     .drop(columns=["Type", "Cost", "Country", "Tech"])
+    #     .groupby(by="Subsegment").sum().reset_index()
+    # )
+
+
+def load_costs_thermal():
+    # ToDo Add segments and subsegments
+    return pd.DataFrame()
+    # return (
+    #     pd.read_csv(Path(path, dir_export, "costs_countries.csv"), header=0)
+    #     .query("segment = 'Thermal'")
+    #     .drop(columns=["Type", "Cost", "Country", "Tech", "segment"])
+    #     .groupby(by="Subsegment").sum().reset_index()
+    # )
+
+
+def load_costs_type():
+    # ToDo Add segments and subsegments
+    return pd.DataFrame()
+    # return (
+    #     pd.read_csv(Path(path, dir_export, "costs_countries.csv"), header=0)
+    #     .drop(columns=["Type", "Country", "Tech", "units", "Segment", "Subsegment"])
+    #     .groupby(by="Cost").sum().reset_index()
+    #     .replace({"marginal": "opex"})
+    # )
+
+
+def load_h2_production():
+    return (
+        pd.read_csv(Path(path, dir_export, "generation_profiles.csv"), header=0)
+        .rename(columns={"Carrier": "carrier"})
+        .query("carrier in ['H2 Electrolysis', 'H2 Fuel Cell']")
+        .groupby(by=["Year", "carrier"]).agg({"Annual sum [TWh]": "sum"})
+        .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
+        .reset_index()
+    )
+
+
+def load_h2_production_bis():
+    return (
+        pd.read_csv(Path(path, dir_export, "loads_profiles.csv"), header=0)
+        .query("Load != 'Electricity demand for sectors'")
+        .groupby(by=["Load", "Years"]).agg({"Annual sum [TWh]": "sum"}).reset_index()
+    )
+
+
+def load_h2_capacities():
+    return (
+        pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .query("carrier in ['H2 Electrolysis', 'H2 Fuel Cell']")
+        .groupby(by="carrier").agg({"2030": "sum", "2035": "sum", "2040": "sum", "units": "first"})
+        .reset_index()
+    )
+
+
+def load_production_profile():
+    return (
+        pd.read_csv(Path(path, dir_export, "generation_profiles.csv"), header=0)
+        [["Year", "Country", "Carrier", "Annual sum [TWh]"]]
+        .query("Carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'Haber-Bosch', 'helmet', "
+               "'home battery charger', 'Sabatier']")
+        .groupby(by=["Year", "Carrier"]).sum(numeric_only=True).reset_index()
+        .rename(columns={"Carrier": "carrier"})
+        .replace({"urban central solid biomass CHP": "biomass CHP"})
+        .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
+        .reset_index()
+    )
+
+
+def load_long_term_storage():
+    return (
+        pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .query("carrier in ['ammonia store', 'H2 Store']")
+        .groupby(by="carrier").sum(numeric_only=True).reset_index()
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+    )
+
+
+def load_short_term_storage():
+    return (
+        pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .query("carrier in ['battery', 'home battery']")
+        .groupby(by="carrier").sum(numeric_only=True).reset_index()
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+    )
+
+
+def load_long_term_storage_eu27():
+    return (
+        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
+        .query("carrier in ['ammonia store', 'H2 Store']")
+        .drop(columns="hist")
+    )
+
+
+def load_short_term_storage_eu27():
+    return (
+        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
+        .query("carrier in ['battery', 'home battery']")
+        .drop(columns="hist")
+    )
+
+
+def load_balance_eu27_bis():
+    return (
+        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
+        .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', 'Haber-Bosch', "
+               "'home battery charger']")
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+    )
+
+
+def export_data():
+    outputs = [
+        "gas_phase_out",
+        "res_capacities",
+        "production_eu27",
+        "production_total",
+        "balance_total",
+        "balance_eu27",
+        "grid_capacity",
+        "res_potentials",
+        "h2_network_capacity",
+        "fossil_fuels",
+        "costs_total",
+        "costs_res",
+        "costs_flex",
+        "costs_segments",
+        "costs_thermal",
+        "costs_type",
+        "h2_production",
+        "h2_production_bis",
+        "h2_capacities",
+        "production_profile",
+        "long_term_storage",
+        "short_term_storage",
+        "long_term_storage_eu27",
+        "short_term_storage_eu27",
+        "balance_eu27_bis",
+    ]
+
+    with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
+        for output in outputs:
+            globals()["load_" + output]().to_excel(xl, sheet_name=output, index=False)
+    return
+
+
 if __name__ == "__main__":
     # for testing
     years = [2030, 2035, 2040]
     path = Path("analysis", "CANEurope_no_SMR_oil_with_and_without_CCL_social17")
+    dir_export = "csvs_for_graphs"
     n_path = Path(path, "results")
 
     simpl = 181
@@ -618,3 +881,4 @@ if __name__ == "__main__":
         countries = None  # ["BE","DE","FR","UK"]
         logger.info(f"Extracting from {path}")
         extract_graphs(years, n_path, n_name, countries=eu25_countries)
+        export_data()
