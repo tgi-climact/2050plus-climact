@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Nov  9 15:35:07 2023
+# SPDX-FileCopyrightText: : 2024 Climact for The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: MIT
 
-@author: VincentLaguna
+"""
+Create data ready to present
 """
 
 import logging
