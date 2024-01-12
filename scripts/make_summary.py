@@ -22,7 +22,7 @@ from prepare_sector_network import prepare_costs
 
 idx = pd.IndexSlice
 
-opt_name = {"Store": "e", "Line": "s", "Transformer": "s", "Link" : "p_carrier"}
+opt_name = {"Store": "e", "Line": "s", "Transformer": "s"}
 
 
 def assign_carriers(n):
@@ -40,67 +40,6 @@ def assign_locations(n):
             else:
                 c.df.loc[names, "location"] = names.str[:i]
 
-def assign_countries(n):
-    n.buses.loc[n.buses.location!="EU","country"] = n.buses.loc[n.buses.loc[n.buses.location!="EU","location"].values,"country"].values
-    n.buses.loc[n.buses.location=="EU","country"] = 'EU'
-    return
-
-def mapper(x,n,to_apply=None):
-        if x in n.buses.index:
-            return n.buses.loc[x,to_apply]
-        else:
-            return np.nan    
-        
-def searcher(x,carrier):
-        if carrier in x.to_list():
-            return str(x.to_list().index(carrier))
-        else:
-            return np.nan
-
-def change_p_nom_opt_carrier(n,carriers=['AC'],temporal=True):
-    """
-    This function expresses for each asset p_nom_opt (whose carrier is not always the same)
-    in function of the given carrier, considering the efficiency
-    E.g.: having p_nom_opt = 333MW for a nuclear powerplant is equal to say that 
-            p_carrier_nom_opt = 100MW_e, if the carrier is 'AC', as the efficiency 
-            from p_nom_opt to AC is 0.333 for this technology
-            
-    Currently, carriers should be limited to ['AC'] as no strict testing was made with other carriers.
-    In a future development, this function should be able to tackle several carriers
-    
-    Parameters
-    ----------
-    n : pypsa.network
-        
-    carriers : List, optional
-        List of carriers to use. Must be limited to ['AC'] for the moment, as bugs might arise. The default is ['AC'].
-
-    Returns
-    -------
-    None.
-
-    """
-    
-    # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
-    li = n.links
-    li_t = n.links_t
-    li["efficiency0"] = 1
-    li["p_carrier_nom_opt"] = li.p_nom_opt
-    li_t["p_carrier_nom_opt"] = li_t.p0
-    efficiency_map = li[[c for c in li.columns if "efficiency" in c]].rename(columns={"efficiency": "efficiency1"})
-    buses_links = [c for c in li.columns if "bus" in c]
-    carrier_map = li[buses_links].applymap(lambda x : mapper(x,n,to_apply="carrier"))
-    
-    for carrier in carriers:
-        index_map = carrier_map.apply(lambda x : searcher(x,carrier), axis=1).dropna()
-        
-        efficiency_map = efficiency_map.loc[index_map.index]
-        efficiency_map = efficiency_map.apply(lambda x: x / x[f"efficiency{index_map.loc[x.name]}"], axis=1)
-        li.loc[efficiency_map.index, "p_carrier_nom_opt"] = li.loc[efficiency_map.index, "p_nom_opt"] / efficiency_map["efficiency0"]    
-        if len(li_t.p0.columns):
-            li_t.p_carrier_nom_opt.loc[:,efficiency_map.index] = li_t.p0.loc[:,efficiency_map.index] / efficiency_map["efficiency0"]
-        
-    return
 
 def calculate_nodal_cfs(n, label, nodal_cfs):
     # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
@@ -293,14 +232,14 @@ def calculate_cumulative_cost():
     return cumulative_cost
 
 
-def calculate_nodal_capacities(n, label, nodal_capacities):
+def calculate_nodal_capacities(n, label, nodal_capacities, _opt_name=opt_name):
     # Beware this also has extraneous locations for country (e.g. biomass) or continent-wide (e.g. fossil gas/oil) stuff
     for c in n.iterate_components(
         n.branch_components | n.controllable_one_port_components ^ {"Load"}
     ):
         nodal_capacities_c = c.df.groupby(["location", "carrier"])[
-            opt_name.get(c.name, "p") + "_nom_opt"
-        ].sum()
+            _opt_name.get(c.name, "p") + "_nom_opt"
+            ].sum()
         index = pd.MultiIndex.from_tuples(
             [(c.list_name,) + t for t in nodal_capacities_c.index.to_list()]
         )
@@ -803,8 +742,6 @@ def make_summaries(networks_dict):
 
         assign_carriers(n)
         assign_locations(n)
-        assign_countries(n)
-        change_p_nom_opt_carrier(n)
 
         for output in outputs:
             df[output] = globals()["calculate_" + output](n, label, df[output])
