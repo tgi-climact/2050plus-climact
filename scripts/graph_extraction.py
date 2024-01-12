@@ -283,78 +283,45 @@ def extract_res_potential(n):
     return df_potential
 
 
-def extract_transmission_AC_DC(n, n_path, n_name):
-    # Localy extend network collection
+def extract_transmission(n, carriers=["AC","DC"],
+                         units = {"AC" : "GW_e", "DC": "GW_e",
+                                  "gas pipeline" : "GW_lhv,ch4", "gas pipeline new" : "GW_lhv,ch4",
+                                  "H2 pipeline" : "GW_lhv,h2", "H2 pipeline retrofitted" : "GW_lhv,h2"}):
     capacity = []
     capacity_countries = []
-    n_copy = n.copy()
-
-    # Set historical values
-    n_hist = pypsa.Network(Path(n_path, "prenetworks", n_name + f"{2030}.nc"))
-    assign_countries(n_hist)
-    n_hist.lines.carrier = "AC"
-    n_hist.lines.s_nom_opt = n_hist.lines.s_nom_min
-    n_hist.links.loc[n_hist.links.carrier.isin(["DC"]), 'p_nom_opt'] = n_hist.links.loc[
-        n_hist.links.carrier.isin(["DC"]), 'p_nom_min']
-
-    n_copy["Historical"] = n_hist
 
     # Add projected values
-    for y, ni in n_copy.items():
-        AC = ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"})
-        DC = ni.links[ni.links.carrier == "DC"]
-        AC_DC = pd.concat([AC, DC])
-
-        buses_links = [c for c in AC_DC.columns if "bus" in c]
-        country_map = AC_DC[buses_links].applymap(lambda x: mapper(x, ni, to_apply="country"))
-        AC_DC_co = {}
-        for co in ni.buses.country.unique():
-            AC_DC_co[co] = AC_DC[country_map.apply(lambda L: L.fillna('').str.contains(co)).any(axis=1)] \
-                .groupby("carrier").p_nom_opt.sum()
-
-        AC_DC_co = pd.DataFrame.from_dict(AC_DC_co, orient='columns').fillna(0) / 1e3
-        capacity_countries.append(pd.concat({y: AC_DC_co}, names=["Year"]))
-        # for co in ni.buses.country.unique():
-        #     lines_co[co] = n.lines[country_map_lines.apply(lambda L : L.str.contains(co).fillna(False)).any(axis=1)].s_nom_opt.sum()
-
-        AC_DC_total = pd.DataFrame(AC_DC.groupby("carrier").p_nom_opt.sum()) / 1e3
-        capacity.append(AC_DC_total.rename(columns={'p_nom_opt': y}))
-
-    df = pd.concat(capacity, axis=1)
-    df_co = pd.concat(capacity_countries, axis=0)
-    df["units"] = "GW_e"
-    df_co["units"] = "GW_e"
-    return df, df_co, n_hist
-
-
-def extract_transmission_H2(n):
-    # Add projected values
-    capacity = []
-    capacity_countries = []
     for y, ni in n.items():
+        
+        transmission = []
+        for ca in carriers:
+            if ca == "AC":
+                transmission.append(ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"}))
+            else:
+                transmission.append(ni.links.query('carrier == @ca'))
+                
+        transmission = pd.concat(transmission)
 
-        H2_pipelines = pd.concat([ni.links[ni.links.carrier.isin(["H2 pipeline"])],
-                                  ni.links[ni.links.carrier.isin(["H2 pipeline retrofitted"])]
-                                  ])
-
-        buses_links = [c for c in H2_pipelines.columns if "bus" in c]
-        country_map = H2_pipelines[buses_links].applymap(lambda x: mapper(x, ni, to_apply="country"))
-
-        H2_per_country = {}
+        buses_links = [c for c in transmission.columns if "bus" in c]
+        country_map = transmission[buses_links].applymap(lambda x: mapper(x, ni, to_apply="country")).fillna('')
+        transmission_co = {}
         for co in ni.buses.country.unique():
-            H2_per_country[co] = H2_pipelines[country_map.apply(lambda L: L.fillna('').str.contains(co)).any(axis=1)] \
-                .groupby("carrier").p_nom_opt.sum()
-        H2_per_country = pd.DataFrame.from_dict(H2_per_country, orient='columns').fillna(0) / 1e3
-        capacity_countries.append(pd.concat({y: H2_per_country}, names=["Year"]))
+            transmission_co[co] =(transmission
+                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
+                    .groupby("carrier") 
+                    .p_nom_opt.sum()
+                )
 
-        H2_total = pd.DataFrame(H2_pipelines.groupby("carrier").p_nom_opt.sum()) / 1e3
-        H2_total.rename({"H2 pipeline": "H2 pipeline new"})
-        capacity.append(H2_total.rename(columns={'p_nom_opt': y}))
+        transmission_co = pd.DataFrame.from_dict(transmission_co, orient='columns').fillna(0) / 1e3
+        capacity_countries.append(pd.concat({y: transmission_co}, names=["Year"]))
+
+        transmission_total = pd.DataFrame(transmission.groupby("carrier").p_nom_opt.sum()) / 1e3
+        capacity.append(transmission_total.rename(columns={'p_nom_opt': y}))
 
     df = pd.concat(capacity, axis=1)
     df_co = pd.concat(capacity_countries, axis=0)
-    df["units"] = "GW_lhv,h2"
-    df_co["units"] = "GW_lhv,h2"
+    df["units"] = df.index.map(units)
+    df_co["units"] = df_co.index.get_level_values(level=1).map(units)
     return df, df_co
 
 
@@ -548,8 +515,8 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_h2 = extract_storage_units(n, color_shift, storage_function, storage_horizon,
                                  both=True, unit={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                                   "H2 Store": "[TWh_lhv,h2]"})
-    ACDC_grid, ACDC_countries, n_hist = extract_transmission_AC_DC(n, n_path, n_name)
-    H2_grid, H2_countries = extract_transmission_H2(n)
+    ACDC_grid, ACDC_countries = extract_transmission(n_ext)
+    H2_grid, H2_countries = extract_transmission(n_ext,carriers=["H2 pipeline","H2 pipeline retrofitted"],)
     n_costs = extract_nodal_costs()
 
     n_profile = extract_production_profiles(n,
