@@ -659,14 +659,14 @@ def load_res_potentials():
 def load_h2_network_capacity():
     return (
         pd.read_csv(Path(path, dir_export, "H2_network_capacities.csv"), header=0)
-        .reindex("carrier", "hist", "2030", "2035", "2040", "units")
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
     )
 
 
 def load_fossil_fuels():
     return (
         pd.read_csv(Path(path, dir_export, "fossil_fuels.csv"), header=0)
-        .reindex("carrier", "hist", "2030", "2035", "2040", "units")
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
     )
 
 
