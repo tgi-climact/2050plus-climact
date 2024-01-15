@@ -313,8 +313,7 @@ def extract_transmission(n, carriers=["AC","DC"],
                     .p_nom_opt.sum()
                 )
             
-            mono_co[co] = (transmission
-                        .query("(Link.str.contains('->')) and not(Link.str.contains('<'))")
+            mono_co[co] = (transmission.loc[(transmission.index.str.contains('->'))&(transmission.index.str.contains('<'))]
                         .query("@co == @country_map.bus0")
                         .groupby("carrier") 
                         .p_nom_opt.sum()
