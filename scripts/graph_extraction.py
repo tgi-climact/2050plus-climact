@@ -305,12 +305,23 @@ def extract_transmission(n, carriers=["AC","DC"],
         buses_links = [c for c in transmission.columns if "bus" in c]
         country_map = transmission[buses_links].applymap(lambda x: mapper(x, ni, to_apply="country")).fillna('')
         transmission_co = {}
+        mono_co = {}
         for co in ni.buses.country.unique():
             transmission_co[co] =(transmission
                     .query("@co == @country_map.bus0 or @co == @country_map.bus1")
                     .groupby("carrier") 
                     .p_nom_opt.sum()
                 )
+            
+            mono_co[co] = (transmission
+                        .query("(Link.str.contains('->')) and not(Link.str.contains('<'))")
+                        .query("@co == @country_map.bus0")
+                        .groupby("carrier") 
+                        .p_nom_opt.sum()
+                    )
+            
+            if len(mono_co[co]):
+                transmission_co[co].loc[mono_co[co].index] -= mono_co[co]
 
         transmission_co = pd.DataFrame.from_dict(transmission_co, orient='columns').fillna(0) / 1e3
         capacity_countries.append(pd.concat({y: transmission_co}, names=["Year"]))
