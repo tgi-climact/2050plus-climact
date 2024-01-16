@@ -31,6 +31,64 @@ LONG_LIST_GENS = ["solar", "solar rooftop", "onwind", "offwind", "offwind-ac", "
                   "ror", "nuclear", "urban central solid biomass CHP",
                   "home battery", "battery", "H2 Store", "ammonia store"]
 
+RENAMER = renamer = {
+    # Carriers
+    "offwind-dc": "offwind",
+    "offwind-ac": "offwind",
+    "solar rooftop": "solar",
+    "coal": "coal/lignite",
+    "lignite": "coal/lignite",
+
+    # Boilers
+    "residential rural biomass boiler": "residential / services biomass boiler",
+    "residential urban decentral biomass boiler": "residential / services biomass boiler",
+    "services rural biomass boiler": "residential / services biomass boiler",
+    "services urban decentral biomass boiler": "residential / services biomass boiler",
+    "residential rural gas boiler": "residential / services gas boiler",
+    "residential urban decentral gas boiler": "residential / services gas boiler",
+    "services rural gas boiler": "residential / services gas boiler",
+    "services urban decentral gas boiler": "residential / services gas boiler",
+    "urban central gas boiler": "residential / services gas boiler",
+    "residential rural oil boiler": "residential / services oil boiler",
+    "residential urban decentral oil boiler": "residential / services oil boiler",
+    "services rural oil boiler": "residential / services oil boiler",
+    "services urban decentral oil boiler": "residential / services oil boiler",
+    "urban central oil boiler": "residential / services oil boiler",
+
+    # Water tanks
+    "residential rural water tanks charger": "residential / services water tanks charger",
+    "residential urban decentral water tanks charger": "residential / services water tanks charger",
+    "services rural water tanks charger": "residential / services water tanks charger",
+    "services urban decentral water tanks charger": "residential / services water tanks charger",
+    "urban central water tanks charger": "residential / services water tanks charger",
+    "residential rural water tanks discharger": "residential / services water tanks discharger",
+    "residential urban decentral water tanks discharger": "residential / services water tanks discharger",
+    "services rural water tanks discharger": "residential / services water tanks discharger",
+    "services urban decentral water tanks discharger": "residential / services water tanks discharger",
+    "urban central water tanks discharger": "residential / services water tanks discharger",
+
+    # Heat pumps
+    "residential rural ground heat pump": "residential / services rural ground heat pump",
+    "services rural ground heat pump": "residential / services rural ground heat pump",
+    "residential urban decentral air heat pump": "residential / services air heat pump",
+    "services urban decentral air heat pump": "residential / services air heat pump",
+    "urban central air heat pump": "residential / services air heat pump",
+
+    # Resistive heaters
+    "residential rural resistive heater": "residential / services resistive heater",
+    "residential urban decentral resistive heater": "residential / services resistive heater",
+    "services rural resistive heater": "residential / services resistive heater",
+    "services urban decentral resistive heater": "residential / services resistive heater",
+    "urban central resistive heater": "residential / services resistive heater",
+
+    # Solar thermals
+    "residential rural solar thermal": "residential / services solar thermal",
+    "residential urban decentral solar thermal": "residential / services solar thermal",
+    "services rural solar thermal": "residential / services solar thermal",
+    "services urban decentral solar thermal": "residential / services solar thermal",
+    "urban central solar thermal": "residential / services solar thermal",
+}
+
 
 def assign_countries(n):
     n.buses = (
@@ -149,9 +207,6 @@ def get_p_carrier_nom_t(n, carrier):
 
 
 def extract_production_profiles(n, subset):
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-               "lignite": "coal/lignite", "ror": "hydro", 'urban central solid biomass CHP': 'biomass CHP'}
-
     profiles = []
     for y, ni in n.items():
         # Grab data from various sources
@@ -200,8 +255,6 @@ def extract_production_profiles(n, subset):
 
 
 def extract_production_units(n, subset_gen=None, subset_links=None):
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-               "lignite": "coal/lignite", "ror": "hydro", 'urban central biomass CHP': 'biomass CHP'}
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                        "home battery charger", "Haber-Bosch", "Sabatier",
@@ -255,10 +308,6 @@ def extract_res_potential(n):
     dfx = []
     dimensions = ["region", "carrier", "build_year"]
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-               "solar rooftop": "solar", "coal": "coal/lignite",
-               "lignite": "coal/lignite", "ror": "hydro",
-               'urban central biomass CHP': 'biomass CHP'}
 
     for y, ni in n.items():
         df_max = pd.DataFrame(ni.generators.p_nom_max)
@@ -403,10 +452,6 @@ def extract_gas_phase_out(n, year):
 
 def extract_country_capacities(n):
     # Duplicates scripts.make_summary.calculate_nodal_capacites
-
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-               "lignite": "coal/lignite", "ror": "hydro", 'urban central biomass CHP': 'biomass CHP'}
-
     for y, ni in n.items():
         df["nodal_capacities"] = calculate_nodal_capacities(ni, y, df["nodal_capacities"],
                                                             _opt_name={"Store": "e", "Line": "s", "Transformer": "s",
