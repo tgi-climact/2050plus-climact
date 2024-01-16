@@ -44,9 +44,9 @@ def assign_countries(n):
     return
 
 
-def mapper(x, n, to_apply=None):
+def bus_mapper(x, n, column=None):
     if x in n.buses.index:
-        return n.buses.loc[x, to_apply]
+        return n.buses.loc[x, column]
     else:
         return np.nan
 
@@ -90,7 +90,7 @@ def change_p_nom_opt_carrier(n, carriers=['AC'], temporal=True):
     li_t["p_carrier_nom_opt"] = li_t.p0
     efficiency_map = li[[c for c in li.columns if "efficiency" in c]].rename(columns={"efficiency": "efficiency1"})
     buses_links = [c for c in li.columns if "bus" in c]
-    carrier_map = li[buses_links].applymap(lambda x: mapper(x, n, to_apply="carrier"))
+    carrier_map = li[buses_links].applymap(lambda x: bus_mapper(x, n, column="carrier"))
 
     for carrier in carriers:
         index_map = carrier_map.apply(lambda x: searcher(x, carrier), axis=1).dropna()
@@ -174,7 +174,7 @@ def extract_production_profiles(n, subset):
 
         # mapping the countries
         buses_links = [c for c in n_y.columns if "bus" in c]
-        country_map = n_y[buses_links].applymap(lambda x: mapper(x, ni, to_apply="country"))
+        country_map = n_y[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
         n_y_t_co = {}
         for co in ni.buses.country.unique():
             if co == 'EU':
@@ -303,7 +303,7 @@ def extract_transmission(n, carriers=["AC","DC"],
         transmission = pd.concat(transmission)
 
         buses_links = [c for c in transmission.columns if "bus" in c]
-        country_map = transmission[buses_links].applymap(lambda x: mapper(x, ni, to_apply="country")).fillna('')
+        country_map = transmission[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
         transmission_co = {}
         mono_co = {}
         for co in ni.buses.country.unique():
