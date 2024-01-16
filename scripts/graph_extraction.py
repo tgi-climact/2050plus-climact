@@ -597,6 +597,7 @@ def load_gas_phase_out():
 def load_res_capacities():
     return (
         pd.read_csv(Path(path, dir_export, "res_capacities.csv"), header=0)
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
     )
 
 
