@@ -684,6 +684,22 @@ def load_balance_eu27():
     )
 
 
+def load_long_term_storage_eu27():
+    return (
+        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
+        .query("carrier in ['ammonia store', 'H2 Store']")
+        .drop(columns="hist")
+    )
+
+
+def load_short_term_storage_eu27():
+    return (
+        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
+        .query("carrier in ['battery', 'home battery']")
+        .drop(columns="hist")
+    )
+
+
 def load_grid_capacity():
     return (
         pd.read_csv(Path(path, dir_export, "grid_capacities.csv"), header=0)
@@ -833,30 +849,6 @@ def load_short_term_storage():
     )
 
 
-def load_long_term_storage_eu27():
-    return (
-        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
-        .query("carrier in ['ammonia store', 'H2 Store']")
-        .drop(columns="hist")
-    )
-
-
-def load_short_term_storage_eu27():
-    return (
-        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
-        .query("carrier in ['battery', 'home battery']")
-        .drop(columns="hist")
-    )
-
-
-def load_balance_eu27_bis():
-    return (
-        pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
-        .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', 'Haber-Bosch', "
-               "'home battery charger']")
-    )
-
-
 def export_data():
     outputs = [
         "gas_phase_out",
@@ -865,6 +857,8 @@ def export_data():
         "production_total",
         "balance_total",
         "balance_eu27",
+        "long_term_storage",
+        "short_term_storage",
         "grid_capacity",
         "res_potentials",
         "h2_network_capacity",
@@ -879,11 +873,8 @@ def export_data():
         "h2_production_bis",
         "h2_capacities",
         "production_profile",
-        "long_term_storage",
-        "short_term_storage",
         "long_term_storage_eu27",
         "short_term_storage_eu27",
-        "balance_eu27_bis",
     ]
 
     with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
