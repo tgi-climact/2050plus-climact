@@ -388,7 +388,7 @@ def extract_gas_phase_out(n, year):
         .sum(numeric_only=True)
         .reset_index()
     )
-    n_cgt.loc[n_cgt["build_year"] != year, "build_year"] = "historical"
+    n_cgt.loc[n_cgt["build_year"] < year, "build_year"] = "historical"
     n_cgt = (
                 n_cgt
                 .groupby(by=dimensions)
