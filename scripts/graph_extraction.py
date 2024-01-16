@@ -776,7 +776,7 @@ def load_h2_production():
     )
 
 
-def load_h2_production_bis():
+def load_industrial_demand():
     return (
         pd.read_csv(Path(path, dir_export, "loads_profiles.csv"), header=0)
         .query("Load != 'Electricity demand for sectors'")
@@ -852,31 +852,32 @@ def load_balance_eu27_bis():
 
 def export_data():
     outputs = [
+        "fossil_fuels",
         "gas_phase_out",
         "res_capacities",
+        "res_potentials",
+        "h2_capacities",
         "production_eu27",
         "production_total",
         "balance_total",
         "balance_eu27",
+        "long_term_storage",
+        "short_term_storage",
+        "long_term_storage_eu27",
+        "short_term_storage_eu27",
         "grid_capacity",
-        "res_potentials",
+        "grid_capacity_countries",
         "h2_network_capacity",
-        "fossil_fuels",
+        "h2_network_capacity_countries",
+        "h2_production",
+        "industrial_demand",
+        "production_profile",
         "costs_total",
         "costs_res",
         "costs_flex",
         "costs_segments",
         "costs_thermal",
         "costs_type",
-        "h2_production",
-        "h2_production_bis",
-        "h2_capacities",
-        "production_profile",
-        "long_term_storage",
-        "short_term_storage",
-        "long_term_storage_eu27",
-        "short_term_storage_eu27",
-        "balance_eu27_bis",
     ]
 
     with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
