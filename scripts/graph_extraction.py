@@ -310,9 +310,7 @@ def extract_res_potential(n):
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
 
     for y, ni in n.items():
-        df_max = pd.DataFrame(ni.generators.p_nom_max)
-        df_opt = pd.DataFrame(ni.generators.p_nom_opt)
-        df = df_max.join(df_opt).reset_index()
+        df = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
         df[dimensions] = df["Generator"].str.extract(rx)
         df["carrier"] = df["carrier"].str.rstrip("-").replace(renamer)
         df["planning horizon"] = y
@@ -921,8 +919,8 @@ if __name__ == "__main__":
 
     df = {}
 
-    eu25_countries = ["AT", "BE", "BG", "HR", "CZ", "DK", "EE", "FI", "FR", "DE", "HU", 'GR', "IE", "IT", "LV", "LT",
-                      "LU", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"]
+    eu27_countries = eu27 = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE",
+                             "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
     n_name = f"elec_s{simpl}_{cluster}_l{ll}_{opts}_{sector_opts}_"
 
     csvs = Path(path, "csvs_for_graphs_" + n_name)
@@ -936,5 +934,5 @@ if __name__ == "__main__":
         export = True
         countries = None  # ["BE","DE","FR","UK"]
         logger.info(f"Extracting from {path}")
-        extract_graphs(years, n_path, n_name, countries=eu25_countries)
+        extract_graphs(years, n_path, n_name, countries=eu27_countries)
         export_data()
