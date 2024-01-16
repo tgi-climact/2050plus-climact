@@ -333,23 +333,23 @@ def extract_res_potential(n):
     return df_potential
 
 
-def extract_transmission(n, carriers=["AC","DC"],
-                         units = {"AC" : "GW_e", "DC": "GW_e",
-                                  "gas pipeline" : "GW_lhv,ch4", "gas pipeline new" : "GW_lhv,ch4",
-                                  "H2 pipeline" : "GW_lhv,h2", "H2 pipeline retrofitted" : "GW_lhv,h2"}):
+def extract_transmission(n, carriers=["AC", "DC"],
+                         units={"AC": "GW_e", "DC": "GW_e",
+                                "gas pipeline": "GW_lhv,ch4", "gas pipeline new": "GW_lhv,ch4",
+                                "H2 pipeline": "GW_lhv,h2", "H2 pipeline retrofitted": "GW_lhv,h2"}):
     capacity = []
     capacity_countries = []
 
     # Add projected values
     for y, ni in n.items():
-        
+
         transmission = []
         for ca in carriers:
             if ca == "AC":
                 transmission.append(ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"}))
             else:
                 transmission.append(ni.links.query('carrier == @ca'))
-                
+
         transmission = pd.concat(transmission)
 
         buses_links = [c for c in transmission.columns if "bus" in c]
@@ -357,18 +357,19 @@ def extract_transmission(n, carriers=["AC","DC"],
         transmission_co = {}
         mono_co = {}
         for co in ni.buses.country.unique():
-            transmission_co[co] =(transmission
-                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
-                    .groupby("carrier") 
-                    .p_nom_opt.sum()
+            transmission_co[co] = (transmission
+                                   .query("@co == @country_map.bus0 or @co == @country_map.bus1")
+                                   .groupby("carrier")
+                                   .p_nom_opt.sum()
+                                   )
+
+            mono_co[co] = (
+                transmission.loc[(transmission.index.str.contains('->')) & (transmission.index.str.contains('<'))]
+                .query("@co == @country_map.bus0")
+                .groupby("carrier")
+                .p_nom_opt.sum()
                 )
-            
-            mono_co[co] = (transmission.loc[(transmission.index.str.contains('->'))&(transmission.index.str.contains('<'))]
-                        .query("@co == @country_map.bus0")
-                        .groupby("carrier") 
-                        .p_nom_opt.sum()
-                    )
-            
+
             if len(mono_co[co]):
                 transmission_co[co].loc[mono_co[co].index] -= mono_co[co]
 
@@ -572,7 +573,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
                                  both=True, unit={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                                   "H2 Store": "[TWh_lhv,h2]"})
     ACDC_grid, ACDC_countries = extract_transmission(n_ext)
-    H2_grid, H2_countries = extract_transmission(n_ext,carriers=["H2 pipeline","H2 pipeline retrofitted"],)
+    H2_grid, H2_countries = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"], )
     n_costs = extract_nodal_costs()
 
     n_profile = extract_production_profiles(n,
