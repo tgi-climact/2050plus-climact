@@ -368,7 +368,7 @@ def extract_transmission(n, carriers=["AC", "DC"],
                 .query("@co == @country_map.bus0")
                 .groupby("carrier")
                 .p_nom_opt.sum()
-                )
+            )
 
             if len(mono_co[co]):
                 transmission_co[co].loc[mono_co[co].index] -= mono_co[co]
@@ -608,28 +608,27 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # Todo : put in a separate function
     # extract
     csvs.mkdir(parents=True, exist_ok=True)
-    for csv in [csvs, Path(path, dir_export)]:
-        n_capa.to_csv(Path(csv, "unit_capacities.csv"))
-        n_sto.savefig(Path(csv, "storage_unit.png"))
-        n_h2.savefig(Path(csv, "h2_production.png"))
-        n_prod.to_csv(Path(csv, "power_production_capacities.csv"))
-        n_res_pot.to_csv(Path(csv, "res_potentials.csv"))
-        n_res.to_csv(Path(csv, "res_capacities.csv"))
-        ACDC_grid.to_csv(Path(csv, "grid_capacities.csv"))
-        H2_grid.to_csv(Path(csv, "H2_network_capacities.csv"))
-        n_bal.to_csv(Path(csv, "power_balance_capacities.csv"))
-        n_gas.to_csv(Path(csv, "gas_phase_out.csv"))
+    n_capa.to_csv(Path(csvs, "unit_capacities.csv"))
+    n_sto.savefig(Path(csvs, "storage_unit.png"))
+    n_h2.savefig(Path(csvs, "h2_production.png"))
+    n_prod.to_csv(Path(csvs, "power_production_capacities.csv"))
+    n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
+    n_res.to_csv(Path(csvs, "res_capacities.csv"))
+    ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
+    H2_grid.to_csv(Path(csvs, "H2_network_capacities.csv"))
+    n_bal.to_csv(Path(csvs, "power_balance_capacities.csv"))
+    n_gas.to_csv(Path(csvs, "gas_phase_out.csv"))
 
-        # extract profiles
-        n_loads.to_csv(Path(csv, "loads_profiles.csv"))
-        n_profile.to_csv(Path(csv, "generation_profiles.csv"))
-        n_costs.to_csv(Path(csv, 'costs_countries.csv'))
+    # extract profiles
+    n_loads.to_csv(Path(csvs, "loads_profiles.csv"))
+    n_profile.to_csv(Path(csvs, "generation_profiles.csv"))
+    n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
 
-        # extract country specific
-        ACDC_countries.to_csv(Path(csv, "grid_capacity_countries.csv"))
-        H2_countries.to_csv(Path(csv, "H2_network_capacity_countries.csv"))
-        capa_country.to_csv(Path(csv, "units_capacity_countries.csv"))
-        logger.info(f"Exported files to folder : {csvs}")
+    # extract country specific
+    ACDC_countries.to_csv(Path(csvs, "grid_capacity_countries.csv"))
+    H2_countries.to_csv(Path(csvs, "H2_network_capacity_countries.csv"))
+    capa_country.to_csv(Path(csvs, "units_capacity_countries.csv"))
+    logger.info(f"Exported files to folder : {csvs}")
     return
 
 
@@ -897,7 +896,7 @@ if __name__ == "__main__":
     # for testing
     years = [2030, 2035, 2040]
     path = Path("analysis", "CANEurope_no_SMR_oil_with_and_without_CCL_social17")
-    dir_export = "csvs_for_graphs"
+    dir_export = "graph_data"
     n_path = Path(path, "results")
 
     simpl = 181
@@ -917,13 +916,13 @@ if __name__ == "__main__":
         for planning_horizon in years
     }
 
+    n_name = f"elec_s{simpl}_{cluster}_l{ll}_{opts}_{sector_opts}_"
+    csvs = Path(path, f"{dir_export}_{n_name}")
+
     df = {}
 
     eu27_countries = eu27 = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE",
                              "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
-    n_name = f"elec_s{simpl}_{cluster}_l{ll}_{opts}_{sector_opts}_"
-
-    csvs = Path(path, "csvs_for_graphs_" + n_name)
 
     countries = None  # ["BE","DE","FR","UK"]
     export = 'y'
