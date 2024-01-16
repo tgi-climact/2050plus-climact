@@ -1005,12 +1005,14 @@ def plot_series(network, carrier="AC", name="test"):
     negative_supply.columns = negative_supply.columns + suffix
 
     supply = pd.concat((supply, negative_supply), axis=1)
+    
+    supply = supply.loc[:,~(supply<0).any(axis=0)]
 
     # 14-21.2 for flaute
     # 19-26.1 for flaute
 
     start = "2013-01-01"
-    stop = "2014-01-01"
+    stop = "2013-02-01"
 
     threshold = 10e3
 
@@ -1063,7 +1065,9 @@ def plot_series(network, carrier="AC", name="test"):
         supply.columns.difference(preferred_order)
     )
 
+    
     supply = supply.groupby(supply.columns, axis=1).sum()
+    new_columns = (supply.std()/supply.mean()).sort_values().index
     fig, ax = plt.subplots()
     fig.set_size_inches((8, 5))
 
@@ -1095,7 +1099,7 @@ def plot_series(network, carrier="AC", name="test"):
 
     ax.legend(new_handles, new_labels, ncol=3, loc="upper left", frameon=False)
     ax.set_xlim([start, stop])
-    ax.set_ylim([-1300, 1900])
+    ax.set_ylim([-100, supply.sum().max()*2/1e3])
     ax.grid(True)
     ax.set_ylabel("Power [GW]")
     fig.tight_layout()
