@@ -301,6 +301,9 @@ def extract_production_units(n, subset_gen=None, subset_links=None):
     for i, j in unit_change.items():
         if i in df.index:
             df.loc[i, 'units'] = j
+
+    cols = sorted([c for c in df.columns if c not in ["units", "hist"]])
+    df = df[["hist"] + cols + ["units"]]
     return df
 
 
@@ -640,14 +643,12 @@ def load_gas_phase_out():
 def load_res_capacities():
     return (
         pd.read_csv(Path(path, dir_export, "res_capacities.csv"), header=0)
-        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
     )
 
 
 def load_production_eu27():
     return (
         pd.read_csv(Path(path, dir_export, "power_production_capacities.csv"), header=0)
-        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
         .replace({"CCGT": "gas", "OCGT": "gas"})
         .groupby(by="carrier").sum().reset_index()
         .query("carrier not in ['home battery', 'ammonia store', 'battery', 'co2 stored', 'H2 Store']")
@@ -680,7 +681,6 @@ def load_balance_eu27():
         pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
                "'Haber-Bosch', 'home battery charger']")
-        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
     )
 
 
@@ -854,7 +854,6 @@ def load_balance_eu27_bis():
         pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', 'Haber-Bosch', "
                "'home battery charger']")
-        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
     )
 
 
