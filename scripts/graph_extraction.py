@@ -676,7 +676,7 @@ def load_balance_total():
     )
 
 
-def load_balance_eu27():
+def load_balance_be():
     return (
         pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
@@ -684,7 +684,7 @@ def load_balance_eu27():
     )
 
 
-def load_long_term_storage_eu27():
+def load_long_term_storage_be():
     return (
         pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
         .query("carrier in ['ammonia store', 'H2 Store']")
@@ -692,7 +692,7 @@ def load_long_term_storage_eu27():
     )
 
 
-def load_short_term_storage_eu27():
+def load_short_term_storage_be():
     return (
         pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
         .query("carrier in ['battery', 'home battery']")
@@ -856,9 +856,9 @@ def export_data():
         "production_eu27",
         "production_total",
         "balance_total",
-        "balance_eu27",
-        "long_term_storage",
-        "short_term_storage",
+        "balance_be",
+        "long_term_storage_be",
+        "short_term_storage_be",
         "grid_capacity",
         "res_potentials",
         "h2_network_capacity",
@@ -873,8 +873,8 @@ def export_data():
         "h2_production_bis",
         "h2_capacities",
         "production_profile",
-        "long_term_storage_eu27",
-        "short_term_storage_eu27",
+        "long_term_storage",
+        "short_term_storage",
     ]
 
     with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
