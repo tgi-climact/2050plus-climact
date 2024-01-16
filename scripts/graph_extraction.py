@@ -650,7 +650,8 @@ def load_production_eu27():
     return (
         pd.read_csv(Path(path, dir_export, "power_production_capacities.csv"), header=0)
         .replace({"CCGT": "gas", "OCGT": "gas"})
-        .groupby(by="carrier").sum().reset_index()
+        .groupby(by="carrier").agg({"hist": "sum", "2030": "sum", "2035": "sum", "2040": "sum", "units": "first"})
+        .reset_index()
         .query("carrier not in ['home battery', 'ammonia store', 'battery', 'co2 stored', 'H2 Store']")
     )
 
