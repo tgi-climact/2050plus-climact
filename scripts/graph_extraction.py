@@ -22,13 +22,14 @@ from make_summary import calculate_nodal_capacities
 
 logger = logging.getLogger(__name__)
 
-LONG_LIST_LINKS = ["coal/lignite", "oil", "CCGT", "OCGT",
+LONG_LIST_LINKS = ["coal/lignite", "oil", "CCGT", "OCGT", "nuclear"
                    "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                    "home battery charger", "Haber-Bosch", "Sabatier",
-                   "ammonia cracker", "helmeth", "SMR", "SMR CC", "hydro"]
+                   "ammonia cracker", "helmeth", "SMR", "SMR CC", 
+                   "hydro", "urban central solid biomass CHP"]
 
 LONG_LIST_GENS = ["solar", "solar rooftop", "onwind", "offwind", "offwind-ac", "offwind-dc",
-                  "ror", "nuclear", "urban central solid biomass CHP",
+                  "ror", "hydro", "nuclear", "urban central solid biomass CHP", "PHS",
                   "home battery", "battery", "H2 Store", "ammonia store"]
 
 
@@ -201,7 +202,7 @@ def extract_production_profiles(n, subset):
 
 def extract_production_units(n, subset_gen=None, subset_links=None):
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-               "lignite": "coal/lignite", "ror": "hydro", 'urban central biomass CHP': 'biomass CHP'}
+               "lignite": "coal/lignite", "ror": "hydro"}
     dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                        "home battery charger", "Haber-Bosch", "Sabatier",
@@ -405,7 +406,7 @@ def extract_country_capacities(n):
     # Duplicates scripts.make_summary.calculate_nodal_capacites
 
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "coal": "coal/lignite",
-               "lignite": "coal/lignite", "ror": "hydro", 'urban central biomass CHP': 'biomass CHP'}
+               "lignite": "coal/lignite", "ror": "hydro"}
 
     for y, ni in n.items():
         df["nodal_capacities"] = calculate_nodal_capacities(ni, y, df["nodal_capacities"],
@@ -590,34 +591,43 @@ def load_gas_phase_out():
     return (
         pd.read_csv(Path(path, dir_export, "gas_phase_out.csv"), header=0)
         .reindex(columns=["country", "historical", "2030", "units"])
-        .rename(columns={"historical": "Historical"})
+        .rename(columns={"historical": "Historical (planned by 2025)"})
     )
 
 
 def load_res_capacities():
     return (
         pd.read_csv(Path(path, dir_export, "res_capacities.csv"), header=0)
+        .drop(columns=["units"])
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+        .rename(columns={"hist": "Historical (installed capacity by 2022)"})
     )
 
 
 def load_production_eu27():
     return (
-        pd.read_csv(Path(path, dir_export, "power_production_capacities.csv"), header=0)
-        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+        pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .query("carrier not in ['gas']")
         .replace({"CCGT": "gas", "OCGT": "gas"})
+        .query("carrier in ['gas', 'hydro', 'nuclear', 'onwind', 'offwind', 'carrier', 'PHS', "
+               "'solar', 'solar rooftop', 'urban central solid biomass CHP']")
+        .query("node in @countries")
         .groupby(by="carrier").sum().reset_index()
-        .query("carrier not in ['home battery', 'ammonia store', 'battery', 'co2 stored', 'H2 Store']")
+        .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+        .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
 
 def load_production_total():
     return (
         pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
+        .query("carrier not in ['gas']")
         .replace({"CCGT": "gas", "OCGT": "gas"})
-        .query("carrier in ['gas', 'hydro', 'nuclear', 'offwind', 'carrier', 'PHS', "
-               "'solar', 'solar rooftop', 'urban central biomass CHP']")
+        .query("carrier in ['gas', 'hydro', 'nuclear', 'onwind', 'offwind', 'carrier', 'PHS', "
+               "'solar', 'solar rooftop', 'urban central solid biomass CHP']")
         .groupby(by="carrier").sum().reset_index()
         .reindex(columns=["carrier", "hist", "2030", "2035", "2040"])
+        .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
 
@@ -626,7 +636,8 @@ def load_balance_total():
         pd.read_csv(Path(path, dir_export, "units_capacity_countries.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
                "'Haber-Bosch', 'home battery charger']")
-        .groupby(by="carrier").agg({"hist": "sum", "2030": "sum", "2035": "sum", "2040": "sum", "units": "first"})
+        .drop(columns = ["hist","units"])
+        .groupby(by="carrier").agg({"2030": "sum", "2035": "sum", "2040": "sum"})
         .reset_index()
     )
 
@@ -636,20 +647,25 @@ def load_balance_eu27():
         pd.read_csv(Path(path, dir_export, "unit_capacities.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
                "'Haber-Bosch', 'home battery charger']")
-        .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
+        .drop(columns = ["hist","units"])
+        .reindex(columns=["carrier", "2030", "2035", "2040"])
     )
 
 
 def load_grid_capacity():
     return (
         pd.read_csv(Path(path, dir_export, "grid_capacities.csv"), header=0)
-        .reindex(columns=["carrier", "Historical", "2030", "2035", "2040"])
+        .rename(columns={"hist": "Historical (planned by 2025)"})
+        .reindex(columns=["carrier", "Historical (planned by 2025)", "2030", "2035", "2040"])
+    )
+
+
     )
 
 
 def load_res_potentials():
     return (
-        pd.read_csv(Path(path, dir_export, "grid_capacities.csv"), header=0)
+        pd.read_csv(Path(path, dir_export, "res_potentials.csv"), header=0)
         .drop(columns=["2030", "2035"])
         .reindex(columns=["carrier", "Historical", "2040", "units"])
     )
@@ -659,6 +675,9 @@ def load_h2_network_capacity():
     return (
         pd.read_csv(Path(path, dir_export, "H2_network_capacities.csv"), header=0)
         .reindex(columns=["carrier", "hist", "2030", "2035", "2040", "units"])
+        .rename(columns={"hist": "Historical (planned by 2025)"})
+    )
+
     )
 
 
