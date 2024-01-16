@@ -660,6 +660,15 @@ def load_grid_capacity():
     )
 
 
+def load_grid_capacity_countries():
+    return (
+        pd.read_csv(Path(path, dir_export, "grid_capacity_countries.csv"), header=0)
+        .groupby('Year').sum(numeric_only=True)
+        .loc[:,['LU','GB','NL','DE','FR']]
+        .reindex(["hist", "2030","2035","2040"])
+        .rename({"hist": "Historical (planned by 2025)"})
+        .reset_index()
+        
     )
 
 
@@ -678,6 +687,14 @@ def load_h2_network_capacity():
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
+
+def load_h2_network_capacity_countries():
+    return (
+        pd.read_csv(Path(path, dir_export, "H2_network_capacity_countries.csv"), header=0)
+        .groupby('Year').sum(numeric_only=True)
+        .loc[:,['LU','GB','NL','DE','FR']]
+        # .rename(columns={"hist": "Historical (planned by 2025)"})
+        .reset_index()
     )
 
 
