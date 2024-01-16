@@ -255,15 +255,14 @@ def extract_production_profiles(n, subset):
 
 
 def extract_production_units(n, subset_gen=None, subset_links=None):
-    dischargers = ["battery discharger", "home battery discharger"]
     balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
-                       "home battery charger", "Haber-Bosch", "Sabatier",
-                       "ammonia cracker", "helmeth", "SMR", "SMR CC"]
-    carriers_links = ["coal", "lignite", "oil"]  # same carrier name than link
-    carriers = carriers_links + ["gas", "uranium", "biomass"]  # different carrier name than link
+                       "home battery charger", "battery discharger", "home battery discharger",
+                       "Haber-Bosch", "Sabatier", "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+    carriers_links = ["coal", "lignite", "oil", "biomass"]  # same carrier name than link
+    carriers = carriers_links + ["gas", "uranium"]  # different carrier name than link
     transmissions = ["DC", "gas pipeline", "gas pipeline new", "CO2 pipeline",
                      "H2 pipeline", "H2 pipeline retrofitted", "electricity distribution grid"]
-    balance_carriers_transmission_exclude = balance_exclude + carriers + transmissions + dischargers
+    balance_carriers_transmission_exclude = balance_exclude + carriers + transmissions
 
     n_prod = {}
     for y, ni in n.items():
