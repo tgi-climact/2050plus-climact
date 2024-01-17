@@ -612,8 +612,8 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     storage_function = {"H2 Fuel Cell": "get_p_carrier_nom_t", "H2 Electrolysis": "get_p_carrier_nom_t"}
     storage_horizon = {"H2 Fuel Cell": "LT", "H2 Electrolysis": "LT", "H2 Store": "LT"}
     n_h2 = extract_storage_units(n, color_shift, storage_function, storage_horizon,
-                                 both=True, unit={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
-                                                  "H2 Store": "[TWh_lhv,h2]"})
+                                 both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
+                                                  "H2 Store": "[TWh_{lhv,h2}]"})
 
     n_res_pot = extract_res_potential(n)
     
@@ -628,6 +628,10 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     extract_series(n)
     
     # extract country specific capacities
+    ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
+    H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
+    capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
+    n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
     
     #Non country specific
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
@@ -638,12 +642,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # extract temporal profiles
     n_loads.to_csv(Path(csvs, "loads_profiles.csv"))
     n_profile.to_csv(Path(csvs, "generation_profiles.csv"))
-    n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
-
-    # extract country specific
-    ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
-    H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
-    capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
+    
     logger.info(f"Exported files to folder : {csvs}")
     return
 
