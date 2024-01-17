@@ -482,20 +482,26 @@ def extract_country_capacities(n):
                                 "level_2": "carrier"}))
 
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
+    
+    # add extarction and storage suffixes
+    dico = {"generators" : "_extraction" , "stores" : "_stores"}
+    for d, suffix in dico.items() :
+        to_modify = df_capa.query('unit_type in [@d] and carrier in ["gas", "oil", "coal/lignite", "uranium", "solid biomass"]').index
+        df_capa.loc[to_modify,["carrier"]] += suffix
+    
     df_capa = df_capa.groupby(["unit_type", "node", "carrier"]).sum().reset_index(["carrier", "unit_type"])
-    df_capa = df_capa.query('unit_type in ["generators","links","storage_units"] or carrier in @LONG_LIST_GENS')
-    df_capa = df_capa.drop(columns='unit_type').groupby(['node', "carrier"]).sum() / 1e3
+    
+    df_capa = df_capa.drop(columns="unit_type").groupby(["node", "carrier"]).sum() / 1e3
 
-    df_capa.loc[(slice(None), 'Haber-Bosch'), :] *= 4.415385
-    df_capa['units'] = 'GW_e'
-    df_capa.loc[(slice(None), ['Haber-Bosch', 'ammonia cracker']), 'units'] = 'GW_lhv,nh3'
-    df_capa.loc[(slice(None), ['Sabatier']), 'units'] = 'GW_lhv,h2'
-    df_capa.loc[(slice(None), ['H2 Store']), 'units'] = 'GWh_lhv,h2'
-    df_capa.loc[(slice(None), ['battery', 'home battery']), 'units'] = 'GWh_e'
-    df_capa.loc[(slice(None), ['gas']), 'units'] = 'GW_lhv,ch4'
-    df_capa.loc[(slice(None), ['oil', 'coal/lignite', 'uranium']), 'units'] = 'GW_lhv'
-    return df_capa
-
+    df_capa.loc[(slice(None), "Haber-Bosch"), :] *= 4.415385
+    df_capa["units"] = "GW_e"
+    df_capa.loc[(slice(None), ["Haber-Bosch", "ammonia cracker"]), "units"] = "GW_lhv,nh3"
+    df_capa.loc[(slice(None), ["Sabatier"]), "units"] = "GW_lhv,h2"
+    df_capa.loc[(slice(None), ["H2 Store"]), "units"] = "GWh_lhv,h2"
+    df_capa.loc[(slice(None), ["battery", "home battery"]), "units"] = "GWh_e"
+    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction", "coal/lignite_extraction", "uranium_extraction", "solid biomass_extraction"]), "units"] = "GW_lhv"
+    return df_capa  
+    
 
 def extract_nodal_costs():
     # Todo : add handling of multiple runs
