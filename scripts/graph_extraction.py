@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import pypsa
@@ -19,6 +20,8 @@ import pypsa
 from make_summary import assign_carriers
 from make_summary import assign_locations
 from make_summary import calculate_nodal_capacities
+from plot_network import plot_series
+from yaml import safe_load
 
 logger = logging.getLogger(__name__)
 
@@ -538,6 +541,15 @@ def extract_loads(n):
     return df
 
 
+def extract_series(n):
+    with plt.style.context(["ggplot"]):
+        with open(Path(path,'results/configs/config.yaml'), 'r') as f:
+            df = safe_load(f)["plotting"]["tech_colors"]
+            for y, ni in n.items(): 
+                prod_profiles = plot_series(ni, carrier="AC", name="AC",
+                                            load_only = True, stop = "2013-02-01",
+                                            colors = df, path = Path(csvs,f"series_AC_{y}.png"))
+
 def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0", 2035: "C1", 2040: "C2"}):
     n = {}
     df["nodal_capacities"] = pd.DataFrame(columns=years, dtype=float)
@@ -584,6 +596,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     plt.close('all')
     ## Figures to extract
     # Storage
+    mpl.rcParams.update(mpl.rcParamsDefault)
     storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
     storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
                        "battery": "ST", "home battery": "ST",
@@ -623,6 +636,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_sto.savefig(Path(csvs, "storage_unit.png"))
     n_h2.savefig(Path(csvs, "h2_production.png"))
     n_prod.to_csv(Path(csvs, "power_production_capacities.csv"))
+    extract_series(n)
     
     # extract country specific capacities
     

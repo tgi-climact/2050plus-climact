@@ -26,7 +26,7 @@ from make_summary import assign_carriers
 from plot_summary import preferred_order, rename_techs
 from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
 
-plt.style.use(["ggplot", "matplotlibrc"])
+plt.style.use(["ggplot"])
 
 
 def rename_techs_tyndp(tech):
@@ -953,7 +953,8 @@ def plot_map_without(network):
     fig.savefig(snakemake.output.today, transparent=True, bbox_inches="tight")
 
 
-def plot_series(network, carrier="AC", name="test"):
+def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
+                stop = "2014-01-01", year = "2013", colors = None):
     n = network.copy()
     assign_location(n)
     assign_carriers(n)
@@ -1006,13 +1007,13 @@ def plot_series(network, carrier="AC", name="test"):
 
     supply = pd.concat((supply, negative_supply), axis=1)
     
-    supply = supply.loc[:,~(supply<0).any(axis=0)]
+    if load_only:
+        supply = supply.loc[:,~(supply<0).any(axis=0)]
 
     # 14-21.2 for flaute
     # 19-26.1 for flaute
 
     start = "2013-01-01"
-    stop = "2013-02-01"
 
     threshold = 10e3
 
@@ -1064,25 +1065,40 @@ def plot_series(network, carrier="AC", name="test"):
     new_columns = preferred_order.intersection(supply.columns).append(
         supply.columns.difference(preferred_order)
     )
-
     
     supply = supply.groupby(supply.columns, axis=1).sum()
-    new_columns = (supply.std()/supply.mean()).sort_values().index
+    if load_only:
+        new_columns = (supply.std()/supply.mean()).sort_values().index
     fig, ax = plt.subplots()
     fig.set_size_inches((8, 5))
 
-    (
-        supply.loc[start:stop, new_columns].plot(
-            ax=ax,
-            kind="area",
-            stacked=True,
-            linewidth=0.0,
-            color=[
-                snakemake.config["plotting"]["tech_colors"][i.replace(suffix, "")]
-                for i in new_columns
-            ],
+    if load_only: 
+        (
+            supply.loc[start:stop, new_columns].plot(
+                ax=ax,
+                kind="area",
+                stacked=True,
+                linewidth=0.0,
+                color=[
+                    colors[i.replace(suffix, "")]
+                    for i in new_columns
+                ],
+            )
         )
-    )
+
+    else:
+        (
+            supply.loc[start:stop, new_columns].plot(
+                ax=ax,
+                kind="area",
+                stacked=True,
+                linewidth=0.0,
+                color=[
+                    snakemake.config["plotting"]["tech_colors"][i.replace(suffix, "")]
+                    for i in new_columns
+                ],
+            )
+        )
 
     handles, labels = ax.get_legend_handles_labels()
 
@@ -1099,12 +1115,18 @@ def plot_series(network, carrier="AC", name="test"):
 
     ax.legend(new_handles, new_labels, ncol=3, loc="upper left", frameon=False)
     ax.set_xlim([start, stop])
-    ax.set_ylim([-100, supply.sum().max()*2/1e3])
+    if load_only:
+        ax.set_ylim([-100, supply.sum().max()*2/1e3])
+    else:
+        ax.set_ylim([-1000, 1900])
     ax.grid(True)
     ax.set_ylabel("Power [GW]")
     fig.tight_layout()
 
-    fig.savefig(snakemake.output.series, transparent=True)
+    if load_only:
+        fig.savefig(path, transparent=True)
+    else:
+        fig.savefig(snakemake.output.series, transparent=True)
 
 
 if __name__ == "__main__":
