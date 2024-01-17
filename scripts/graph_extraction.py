@@ -311,7 +311,7 @@ def extract_res_potential(n):
     dimensions = ["region", "carrier", "build_year"]
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
     renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-               "solar rooftop": "solar", ror": "hydro",
+               "solar rooftop": "solar", "ror": "hydro",
                'urban central biomass CHP': 'biomass CHP'}
 
     for y, ni in n.items():
@@ -441,7 +441,7 @@ def extract_gas_phase_out(n, year):
         .sum(numeric_only=True)
         .reset_index()
     )
-    n_cgt.loc[n_cgt["build_year"] < year, "build_year"] = "historical"
+    n_cgt.loc[n_cgt["build_year"] < year, "build_year"] = "hist"
     n_cgt = (
                 n_cgt
                 .groupby(by=dimensions)
@@ -451,7 +451,7 @@ def extract_gas_phase_out(n, year):
                 .sort_values(by=year, ascending=False)
             ) / 1e3  # GW
     n_cgt['units'] = 'GW_e'
-    return n_cgt[n_cgt[year] >= 1]
+    return n_cgt[n_cgt[year] >= 1].fillna(0)
 
 
 def extract_country_capacities(n):
@@ -561,8 +561,19 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_ext = n.copy()
     n_ext['hist'] = n_bf.copy()
 
+    # DataFrames to extract
+    n_gas = extract_gas_phase_out(n, 2030)
+    capa_country = extract_country_capacities(n_ext)
+    n_loads = extract_loads(n)
+    ACDC_grid, ACDC_countries = extract_transmission(n_ext)
+    H2_grid, H2_countries = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"], )
+    n_costs = extract_nodal_costs()
+    n_profile = extract_production_profiles(n,
+                                            subset=LONG_LIST_LINKS + LONG_LIST_GENS)
+    
     plt.close('all')
-    # Extract full country list before selection of countries
+    ## Figures to extract
+    # Storage
     storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
     storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
                        "battery": "ST", "home battery": "ST",
@@ -574,15 +585,6 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_h2 = extract_storage_units(n, color_shift, storage_function, storage_horizon,
                                  both=True, unit={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                                   "H2 Store": "[TWh_lhv,h2]"})
-    ACDC_grid, ACDC_countries = extract_transmission(n_ext)
-    H2_grid, H2_countries = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"], )
-    n_costs = extract_nodal_costs()
-
-    n_profile = extract_production_profiles(n,
-                                            subset=LONG_LIST_LINKS + LONG_LIST_GENS)
-    n_gas = extract_gas_phase_out(n, 2030)
-
-    capa_country = extract_country_capacities(n_ext)
 
     for v in n.values():
         if countries:
@@ -605,7 +607,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_capa = extract_production_units(n_ext, subset_gen=LONG_LIST_GENS,
                                       subset_links=LONG_LIST_LINKS)
 
-    n_loads = extract_loads(n)
+    
 
     # Todo : put in a separate function
     # extract
