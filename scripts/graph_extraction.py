@@ -401,7 +401,7 @@ def extract_transmission(n, carriers=["AC", "DC"],
     return df, df_co
 
 
-def extract_storage_units(n, color_shift, storage_function, storage_horizon, both=False, unit={}):
+def extract_storage_units(n, color_shift, storage_function, storage_horizon, both=False, units={}):
     carrier = list(storage_horizon.keys())
 
     fig = plt.figure(figsize=(14, 8))
@@ -430,10 +430,10 @@ def extract_storage_units(n, color_shift, storage_function, storage_horizon, bot
                 st[car] = storage.iloc[:int(8 * 31)]
         for i, (car, s) in enumerate(st.items()):
             ax = plt.subplot(3, 2, 2 * i + 1)
-            plotting(ax, car, s, y, unit=unit.get(car, '[TWh]'))
+            plotting(ax, car, s, y, unit=r"${}$".format(units.get(car, '[TWh]')))
         for i, (car, l) in enumerate((lt).items()):
             ax = plt.subplot(3, 2, 2 * (i + 1))
-            plotting(ax, car, l, y, unit=unit.get(car, '[TWh]'))
+            plotting(ax, car, l, y, unit=r"${}$".format(units.get(car, '[TWh]')))
 
     ax.legend()
     return fig
