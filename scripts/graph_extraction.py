@@ -89,6 +89,10 @@ RENAMER = renamer = {
     "urban central solar thermal": "residential / services solar thermal",
 }
 
+BALANCE = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
+           "home battery charger", "battery discharger", "home battery discharger",
+           "Haber-Bosch", "Sabatier", "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+
 
 def assign_countries(n):
     n.buses = (
@@ -255,14 +259,11 @@ def extract_production_profiles(n, subset):
 
 
 def extract_production_units(n, subset_gen=None, subset_links=None):
-    balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
-                       "home battery charger", "battery discharger", "home battery discharger",
-                       "Haber-Bosch", "Sabatier", "ammonia cracker", "helmeth", "SMR", "SMR CC"]
     carriers_links = ["coal", "lignite", "oil", "biomass"]  # same carrier name than link
     carriers = carriers_links + ["gas", "uranium"]  # different carrier name than link
     transmissions = ["DC", "gas pipeline", "gas pipeline new", "CO2 pipeline",
                      "H2 pipeline", "H2 pipeline retrofitted", "electricity distribution grid"]
-    balance_carriers_transmission_exclude = balance_exclude + carriers + transmissions
+    balance_carriers_transmission_exclude = BALANCE + carriers + transmissions
 
     n_prod = {}
     for y, ni in n.items():
@@ -310,9 +311,8 @@ def extract_res_potential(n):
     dfx = []
     dimensions = ["region", "carrier", "build_year"]
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-               "solar rooftop": "solar", "ror": "hydro",
-               'urban central biomass CHP': 'biomass CHP'}
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "solar rooftop": "solar", "ror": "hydro",
+               "urban central biomass CHP": "biomass CHP"}
 
     for y, ni in n.items():
         df = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
@@ -339,8 +339,8 @@ def extract_transmission(n, carriers=["AC", "DC"],
                          units={"AC": "GW_e", "DC": "GW_e",
                                 "gas pipeline": "GW_lhv,ch4", "gas pipeline new": "GW_lhv,ch4",
                                 "H2 pipeline": "GW_lhv,h2", "H2 pipeline retrofitted": "GW_lhv,h2"}):
-    capacity = []
-    capacity_countries = []
+    capacities = []
+    capacities_countries = []
 
     # Add projected values
     for y, ni in n.items():
@@ -376,13 +376,13 @@ def extract_transmission(n, carriers=["AC", "DC"],
                 transmission_co[co].loc[mono_co[co].index] -= mono_co[co]
 
         transmission_co = pd.DataFrame.from_dict(transmission_co, orient='columns').fillna(0) / 1e3
-        capacity_countries.append(pd.concat({y: transmission_co}, names=["Year"]))
+        capacities_countries.append(pd.concat({y: transmission_co}, names=["Year"]))
 
         transmission_total = pd.DataFrame(transmission.groupby("carrier").p_nom_opt.sum()) / 1e3
-        capacity.append(transmission_total.rename(columns={'p_nom_opt': y}))
+        capacities.append(transmission_total.rename(columns={'p_nom_opt': y}))
 
-    df = pd.concat(capacity, axis=1)
-    df_co = pd.concat(capacity_countries, axis=0)
+    df = pd.concat(capacities, axis=1)
+    df_co = pd.concat(capacities_countries, axis=0)
     df["units"] = df.index.map(units)
     df_co["units"] = df_co.index.get_level_values(level=1).map(units)
     return df, df_co
@@ -598,14 +598,9 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
 
     # country specific extracts
     n_prod = extract_production_units(n_ext)
-    n_res = extract_production_units(n_ext, subset_gen=["solar", "onwind", "offwind", "ror"],
-                                     subset_links=[""])
-    n_bal = extract_production_units(n_ext, subset_gen=[""],
-                                     subset_links=["H2 Electrolysis", "H2 Fuel Cell", "battery charger",
-                                                   "home battery charger", "Haber-Bosch", "Sabatier",
-                                                   "ammonia cracker", "helmeth", "SMR", "SMR CC"])
-    n_capa = extract_production_units(n_ext, subset_gen=LONG_LIST_GENS,
-                                      subset_links=LONG_LIST_LINKS)
+    n_res = extract_production_units(n_ext, subset_gen=["solar", "onwind", "offwind", "ror"], subset_links=[""])
+    n_bal = extract_production_units(n_ext, subset_gen=[""], subset_links=BALANCE)
+    n_capa = extract_production_units(n_ext, subset_gen=LONG_LIST_GENS, subset_links=LONG_LIST_LINKS)
 
     
 
@@ -629,9 +624,9 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
 
     # extract country specific
-    ACDC_countries.to_csv(Path(csvs, "grid_capacity_countries.csv"))
-    H2_countries.to_csv(Path(csvs, "H2_network_capacity_countries.csv"))
-    capa_country.to_csv(Path(csvs, "units_capacity_countries.csv"))
+    ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
+    H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
+    capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
     logger.info(f"Exported files to folder : {csvs}")
     return
 
@@ -684,7 +679,7 @@ def load_balance_total():
         pd.read_csv(Path(csvs, "units_capacity_countries.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
                "'Haber-Bosch', 'home battery charger']")
-        .drop(columns = ["hist","units"])
+        .drop(columns= ["hist","units"])
         .groupby(by="carrier").agg(dict(zip(years_str,["sum"]*len(years))))
         .reset_index()
     )
@@ -693,9 +688,8 @@ def load_balance_total():
 def load_balance_be():
     return (
         pd.read_csv(Path(csvs, "unit_capacities.csv"), header=0)
-        .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
-               "'Haber-Bosch', 'home battery charger']")
-        .drop(columns = ["hist","units"])
+	.query("carrier in @BALANCE")
+        .drop(columns= ["hist", "units"])
         .reindex(columns= excel_columns["future_years"])
     )
 
@@ -716,14 +710,15 @@ def load_short_term_storage_be():
     )
 
 
-def load_grid_capacity():
+def load_grid_capacities():
     return (
         pd.read_csv(Path(csvs, "grid_capacities.csv"), header=0)
         .reindex(columns= excel_columns["all_years_units"])
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
-def load_grid_capacity_countries():
+
+def load_grid_capacities_countries():
     return (
         pd.read_csv(Path(csvs, "grid_capacity_countries.csv"), header=0)
         .groupby('Year').sum(numeric_only=True)
@@ -731,6 +726,7 @@ def load_grid_capacity_countries():
         .reset_index()
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
+
 
 def load_res_potentials():
     return (
@@ -740,7 +736,7 @@ def load_res_potentials():
     )
 
 
-def load_h2_network_capacity():
+def load_h2_network_capacities():
     return (
         pd.read_csv(Path(csvs, "H2_network_capacities.csv"), header=0)
         .reindex(columns= excel_columns["all_years_units"])
@@ -748,11 +744,12 @@ def load_h2_network_capacity():
     )
 
 
-def load_h2_network_capacity_countries():
+def load_h2_network_capacities_countries():
     return (
         pd.read_csv(Path(csvs, "H2_network_capacity_countries.csv"), header=0)
         .groupby('Year').sum(numeric_only=True)
-        .loc[:,['LU','GB','NL','DE','FR']]
+        .loc[:, ['LU', 'GB', 'NL', 'DE', 'FR']]
+        # .rename(columns={"hist": "Historical (planned by 2025)"})
         .reset_index()
     )
 
@@ -860,7 +857,7 @@ def load_production_profile():
                "'home battery charger', 'Sabatier']")
         .groupby(by=["Year", "Carrier"]).sum(numeric_only=True).reset_index()
         .rename(columns={"Carrier": "carrier"})
-        .replace({"urban central solid biomass CHP": "biomass CHP"})
+        .replace(RENAMER)
         .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
         .reset_index()
     )
@@ -903,8 +900,7 @@ def load_short_term_storage_eu27():
 def load_balance_eu27_bis():
     return (
         pd.read_csv(Path(csvs, "unit_capacities.csv"), header=0)
-        .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', 'Haber-Bosch', "
-               "'home battery charger']")
+        .query("carrier in @BALANCE")
         .reindex(columns= excel_columns["all_years"])
     )
 
@@ -924,10 +920,10 @@ def export_data():
         "short_term_storage",
         "long_term_storage_be",
         "short_term_storage_be",
-        "grid_capacity",
-        "grid_capacity_countries",
-        "h2_network_capacity",
-        "h2_network_capacity_countries",
+        "grid_capacities",
+        "grid_capacities_countries",
+        "h2_network_capacities",
+        "h2_network_capacities_countries",
         "h2_production",
         "industrial_demand",
         "production_profile",
@@ -976,7 +972,7 @@ if __name__ == "__main__":
     df = {}
 
     eu27_countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE",
-                             "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
+                      "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
 
 
     #Todo : type cast all references to year into str or int
