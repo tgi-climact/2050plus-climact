@@ -310,9 +310,8 @@ def extract_res_potential(n):
     dfx = []
     dimensions = ["region", "carrier", "build_year"]
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind",
-               "solar rooftop": "solar", ror": "hydro",
-               'urban central biomass CHP': 'biomass CHP'}
+    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "solar rooftop": "solar", "ror": "hydro",
+               "urban central biomass CHP": "biomass CHP"}
 
     for y, ni in n.items():
         df = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
@@ -682,7 +681,7 @@ def load_balance_total():
         pd.read_csv(Path(path, csvs, "units_capacity_countries.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
                "'Haber-Bosch', 'home battery charger']")
-        .drop(columns = ["hist","units"])
+        .drop(columns=["hist", "units"])
         .groupby(by="carrier").agg({"2030": "sum", "2035": "sum", "2040": "sum"})
         .reset_index()
     )
@@ -693,7 +692,7 @@ def load_balance_be():
         pd.read_csv(Path(path, csvs, "unit_capacities.csv"), header=0)
         .query("carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'H2 Fuel Cell', "
                "'Haber-Bosch', 'home battery charger']")
-        .drop(columns = ["hist","units"])
+        .drop(columns=["hist", "units"])
         .reindex(columns=["carrier", "2030", "2035", "2040"])
     )
 
@@ -741,7 +740,7 @@ def load_h2_network_capacity_countries():
     return (
         pd.read_csv(Path(path, dir_export, "H2_network_capacity_countries.csv"), header=0)
         .groupby('Year').sum(numeric_only=True)
-        .loc[:,['LU','GB','NL','DE','FR']]
+        .loc[:, ['LU', 'GB', 'NL', 'DE', 'FR']]
         # .rename(columns={"hist": "Historical (planned by 2025)"})
         .reset_index()
     )
@@ -910,8 +909,8 @@ def export_data():
         "production_total",
         "balance_total",
         "balance_be",
-	"long_term_storage",
-	"short_term_storage",
+        "long_term_storage",
+        "short_term_storage",
         "long_term_storage_be",
         "short_term_storage_be",
         "grid_capacity",
@@ -965,7 +964,7 @@ if __name__ == "__main__":
     df = {}
 
     eu27_countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE",
-                             "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
+                      "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
 
     countries = None  # ["BE","DE","FR","UK"]
     export = 'y'
