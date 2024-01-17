@@ -615,43 +615,24 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
                                  both=True, unit={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                                   "H2 Store": "[TWh_lhv,h2]"})
 
-    for v in n.values():
-        if countries:
-            select_countries(v, countries)
-
-    for v in n_ext.values():
-        if countries:
-            select_countries(v, countries)
-
     n_res_pot = extract_res_potential(n)
-
-    # country specific extracts
-    n_prod = extract_production_units(n_ext)
-    n_res = extract_production_units(n_ext, subset_gen=["solar", "onwind", "offwind", "ror"], subset_links=[""])
-    n_bal = extract_production_units(n_ext, subset_gen=[""], subset_links=BALANCE)
-    n_capa = extract_production_units(n_ext, subset_gen=LONG_LIST_GENS, subset_links=LONG_LIST_LINKS)
-
     
 
     # Todo : put in a separate function
     # extract
     csvs.mkdir(parents=True, exist_ok=True)
-    n_capa.to_csv(Path(csvs, "unit_capacities.csv"))
     
     # Figures
     n_sto.savefig(Path(csvs, "storage_unit.png"))
     n_h2.savefig(Path(csvs, "h2_production.png"))
-    n_prod.to_csv(Path(csvs, "power_production_capacities.csv"))
     extract_series(n)
     
     # extract country specific capacities
     
     #Non country specific
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
-    n_res.to_csv(Path(csvs, "res_capacities.csv"))
     ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
     H2_grid.to_csv(Path(csvs, "H2_network_capacities.csv"))
-    n_bal.to_csv(Path(csvs, "power_balance_capacities.csv"))
     n_gas.to_csv(Path(csvs, "gas_phase_out.csv"))
 
     # extract temporal profiles
