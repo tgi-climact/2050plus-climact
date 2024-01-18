@@ -210,52 +210,52 @@ def get_p_carrier_nom_t(n, carrier):
 
 
 # %% Extract functions
-def extract_production_profiles(n, subset):
-    profiles = []
-    for y, ni in n.items():
-        # Grab data from various sources
-        n_y_t = pd.concat([
-            ni.links_t.p_carrier_nom_opt,
-            ni.generators_t.p,
-            ni.storage_units_t.p
-        ], axis=1)
-        n_y = pd.concat([
-            ni.links,
-            ni.generators,
-            ni.storage_units
-        ])
-        n_y = n_y.rename(index=renamer)
-
-        # sorting the carriers
-        n_y_t = n_y_t.loc[:, n_y.index]
-        n_y_t = n_y_t.loc[:, n_y.carrier.isin(subset)]
-        n_y = n_y.loc[n_y.carrier.isin(subset)]
-
-        # mapping the countries
-        buses_links = [c for c in n_y.columns if "bus" in c]
-        country_map = n_y[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
-        n_y_t_co = {}
-        for co in ni.buses.country.unique():
-            if co == 'EU':
-                continue
-            carrier_mapping = n_y[country_map.apply(lambda L: L.fillna('').str.contains(co)).any(axis=1)] \
-                .groupby("carrier").apply(lambda x: x)
-            carrier_mapping = dict(zip(carrier_mapping.index.droplevel(0),
-                                       carrier_mapping.index.droplevel(1)))
-            n_y_t_co[co] = (n_y_t.loc[:, n_y_t.columns.isin(list(carrier_mapping.keys()))]
-                            .rename(columns=carrier_mapping)
-                            .groupby(axis=1, level=0)
-                            .sum()).T
-
-        profiles.append(pd.concat({y: pd.concat(n_y_t_co)}, names=["Year", 'Country', "Carrier"]))
-
-    df = pd.concat(profiles)
-    df.insert(0, column="Annual sum [TWh]", value=df.sum(axis=1) / 1e6 * 8760 / len(ni.snapshots))
-    df.loc[(slice(None), slice(None), 'Haber-Bosch'), :] *= 4.415385
-    df.insert(0, column="units", value="MWh_e")
-    df.loc[(slice(None), slice(None), ['Haber-Bosch', 'ammonia cracker']), 'units'] = 'MWh_lhv,nh3'
-    df.loc[(slice(None), slice(None), ['Sabatier']), 'units'] = 'MWh_lhv,h2'
-    return df
+# def extract_production_profiles(n, subset):
+#     profiles = []
+#     for y, ni in n.items():
+#         # Grab data from various sources
+#         n_y_t = pd.concat([
+#             ni.links_t.p_carrier_nom_opt,
+#             ni.generators_t.p,
+#             ni.storage_units_t.p
+#         ], axis=1)
+#         n_y = pd.concat([
+#             ni.links,
+#             ni.generators,
+#             ni.storage_units
+#         ])
+#         n_y = n_y.rename(index=renamer)
+#
+#         # sorting the carriers
+#         n_y_t = n_y_t.loc[:, n_y.index]
+#         n_y_t = n_y_t.loc[:, n_y.carrier.isin(subset)]
+#         n_y = n_y.loc[n_y.carrier.isin(subset)]
+#
+#         # mapping the countries
+#         buses_links = [c for c in n_y.columns if "bus" in c]
+#         country_map = n_y[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
+#         n_y_t_co = {}
+#         for co in ni.buses.country.unique():
+#             if co == 'EU':
+#                 continue
+#             carrier_mapping = n_y[country_map.apply(lambda L: L.fillna('').str.contains(co)).any(axis=1)] \
+#                 .groupby("carrier").apply(lambda x: x)
+#             carrier_mapping = dict(zip(carrier_mapping.index.droplevel(0),
+#                                        carrier_mapping.index.droplevel(1)))
+#             n_y_t_co[co] = (n_y_t.loc[:, n_y_t.columns.isin(list(carrier_mapping.keys()))]
+#                             .rename(columns=carrier_mapping)
+#                             .groupby(axis=1, level=0)
+#                             .sum()).T
+#
+#         profiles.append(pd.concat({y: pd.concat(n_y_t_co)}, names=["Year", 'Country', "Carrier"]))
+#
+#     df = pd.concat(profiles)
+#     df.insert(0, column="Annual sum [TWh]", value=df.sum(axis=1) / 1e6 * 8760 / len(ni.snapshots))
+#     df.loc[(slice(None), slice(None), 'Haber-Bosch'), :] *= 4.415385
+#     df.insert(0, column="units", value="MWh_e")
+#     df.loc[(slice(None), slice(None), ['Haber-Bosch', 'ammonia cracker']), 'units'] = 'MWh_lhv,nh3'
+#     df.loc[(slice(None), slice(None), ['Sabatier']), 'units'] = 'MWh_lhv,h2'
+#     return df
 
 
 def extract_res_potential(n):
@@ -539,8 +539,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     ACDC_grid, ACDC_countries = extract_transmission(n_ext)
     H2_grid, H2_countries = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"], )
     n_costs = extract_nodal_costs()
-    n_profile = extract_production_profiles(n,
-                                            subset=LONG_LIST_LINKS + LONG_LIST_GENS)
+    # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
     plt.close('all')
     ## Figures to extract
@@ -583,7 +582,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
 
     # extract temporal profiles
     n_loads.to_csv(Path(csvs, "loads_profiles.csv"))
-    n_profile.to_csv(Path(csvs, "generation_profiles.csv"))
+    # n_profile.to_csv(Path(csvs, "generation_profiles.csv"))
 
     logger.info(f"Exported files to folder : {csvs}")
     return
@@ -795,15 +794,15 @@ def load_res_potentials():
     )
 
 
-def load_h2_production():
-    return (
-        pd.read_csv(Path(csvs, "generation_profiles.csv"), header=0)
-        .rename(columns={"Carrier": "carrier"})
-        .query("carrier in ['H2 Electrolysis', 'H2 Fuel Cell']")
-        .groupby(by=["Year", "carrier"]).agg({"Annual sum [TWh]": "sum"})
-        .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
-        .reset_index()
-    )
+# def load_h2_production():
+#     return (
+#         pd.read_csv(Path(csvs, "generation_profiles.csv"), header=0)
+#         .rename(columns={"Carrier": "carrier"})
+#         .query("carrier in ['H2 Electrolysis', 'H2 Fuel Cell']")
+#         .groupby(by=["Year", "carrier"]).agg({"Annual sum [TWh]": "sum"})
+#         .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
+#         .reset_index()
+#     )
 
 
 def load_industrial_demand():
@@ -814,18 +813,18 @@ def load_industrial_demand():
     )
 
 
-def load_production_profile():
-    return (
-        pd.read_csv(Path(csvs, "generation_profiles.csv"), header=0)
-        [["Year", "Country", "Carrier", "Annual sum [TWh]"]]
-        .query("Carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'Haber-Bosch', 'helmet', "
-               "'home battery charger', 'Sabatier']")
-        .groupby(by=["Year", "Carrier"]).sum(numeric_only=True).reset_index()
-        .rename(columns={"Carrier": "carrier"})
-        .replace(RENAMER)
-        .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
-        .reset_index()
-    )
+# def load_production_profile():
+#     return (
+#         pd.read_csv(Path(csvs, "generation_profiles.csv"), header=0)
+#         [["Year", "Country", "Carrier", "Annual sum [TWh]"]]
+#         .query("Carrier in ['ammonia cracker', 'battery charger', 'H2 Electrolysis', 'Haber-Bosch', 'helmet', "
+#                "'home battery charger', 'Sabatier']")
+#         .groupby(by=["Year", "Carrier"]).sum(numeric_only=True).reset_index()
+#         .rename(columns={"Carrier": "carrier"})
+#         .replace(RENAMER)
+#         .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
+#         .reset_index()
+#     )
 
 
 # %%
