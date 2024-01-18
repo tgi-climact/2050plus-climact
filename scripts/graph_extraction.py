@@ -11,21 +11,21 @@ import logging
 import re
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pypsa
+from yaml import safe_load
 
 from make_summary import assign_carriers
 from make_summary import assign_locations
 from make_summary import calculate_nodal_capacities
 from plot_network import plot_series
-from yaml import safe_load
 
 logger = logging.getLogger(__name__)
 
-#%% Constants
+# %% Constants
 LONG_LIST_LINKS = ["coal/lignite", "oil", "CCGT", "OCGT",
                    "H2 Electrolysis", "H2 Fuel Cell", "battery charger",
                    "home battery charger", "Haber-Bosch", "Sabatier",
@@ -42,7 +42,7 @@ RENAMER = renamer = {
     "solar rooftop": "solar",
     "coal": "coal/lignite",
     "lignite": "coal/lignite",
-    "battery storage" : "EV batteries",
+    "battery storage": "EV batteries",
 
     # Boilers
     "residential rural biomass boiler": "residential / services biomass boiler",
@@ -94,19 +94,18 @@ RENAMER = renamer = {
     "urban central solar thermal": "residential / services solar thermal",
 }
 
-
-
-RES = ["solar", "solar rooftop", "offwind" , "offwind-ac", "offwind-dc", "onwind"]
+RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"]
 LONG_TERM_STORAGE = ["H2 Store", "ammonia store"]
 SHORT_TERM_STORAGE = ["battery", "home battery", "EV batteries"]
 FF_ELEC = ["OCGT", "CCGT", "coal/lignite"]
 FF_HEAT = ["residential / services oil boiler", "residential / services gas boiler"]
 PRODUCTION = FF_ELEC + ["PHS", "hydro", "nuclear", "urban central biomass CHP", "solid biomass"] + RES
 H2 = ["H2 Electrolysis", "H2 Fuel Cell"]
-BALANCE = H2 + [ "battery charger", "home battery charger", "BEV charger" "Haber-Bosch", "Sabatier",
+BALANCE = H2 + ["battery charger", "home battery charger", "BEV charger" "Haber-Bosch", "Sabatier",
                 "ammonia cracker", "helmeth", "SMR", "SMR CC", "Fischer-Tropsch"]
 
-#%% Utils
+
+# %% Utils
 def assign_countries(n):
     n.buses = (
         n.buses.merge(
@@ -222,7 +221,8 @@ def get_p_carrier_nom_t(n, carrier):
     df.drop(columns=["Link"], inplace=True)
     return df.T[[carrier]] / 1e3  # GW
 
-#%% Extract functions
+
+# %% Extract functions
 def extract_production_profiles(n, subset):
     profiles = []
     for y, ni in n.items():
@@ -482,15 +482,16 @@ def extract_country_capacities(n):
                                 "level_2": "carrier"}))
 
     df_capa.node = df_capa.node.apply(lambda x: x[:2])
-    
+
     # add extarction and storage suffixes
-    dico = {"generators" : "_extraction" , "stores" : "_stores"}
-    for d, suffix in dico.items() :
-        to_modify = df_capa.query('unit_type in [@d] and carrier in ["gas", "oil", "coal/lignite", "uranium", "solid biomass"]').index
-        df_capa.loc[to_modify,["carrier"]] += suffix
-    
+    dico = {"generators": "_extraction", "stores": "_stores"}
+    for d, suffix in dico.items():
+        to_modify = df_capa.query(
+            'unit_type in [@d] and carrier in ["gas", "oil", "coal/lignite", "uranium", "solid biomass"]').index
+        df_capa.loc[to_modify, ["carrier"]] += suffix
+
     df_capa = df_capa.groupby(["unit_type", "node", "carrier"]).sum().reset_index(["carrier", "unit_type"])
-    
+
     df_capa = df_capa.drop(columns="unit_type").groupby(["node", "carrier"]).sum() / 1e3
 
     df_capa.loc[(slice(None), "Haber-Bosch"), :] *= 4.415385
@@ -499,9 +500,10 @@ def extract_country_capacities(n):
     df_capa.loc[(slice(None), ["Sabatier"]), "units"] = "GW_lhv,h2"
     df_capa.loc[(slice(None), ["H2 Store"]), "units"] = "GWh_lhv,h2"
     df_capa.loc[(slice(None), ["battery", "home battery"]), "units"] = "GWh_e"
-    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction", "coal/lignite_extraction", "uranium_extraction", "solid biomass_extraction"]), "units"] = "GW_lhv"
-    return df_capa  
-    
+    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction", "coal/lignite_extraction", "uranium_extraction",
+                               "solid biomass_extraction"]), "units"] = "GW_lhv"
+    return df_capa
+
 
 def extract_nodal_costs():
     # Todo : add handling of multiple runs
@@ -549,12 +551,13 @@ def extract_loads(n):
 
 def extract_series(n):
     with plt.style.context(["ggplot"]):
-        with open(Path(path,'results/configs/config.yaml'), 'r') as f:
+        with open(Path(path, 'results/configs/config.yaml'), 'r') as f:
             df = safe_load(f)["plotting"]["tech_colors"]
-            for y, ni in n.items(): 
+            for y, ni in n.items():
                 prod_profiles = plot_series(ni, carrier="AC", name="AC",
-                                            load_only = True, stop = "2013-02-01",
-                                            colors = df, path = Path(csvs,f"series_AC_{y}.png"))
+                                            load_only=True, stop="2013-02-01",
+                                            colors=df, path=Path(csvs, f"series_AC_{y}.png"))
+
 
 def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0", 2035: "C1", 2040: "C2"}):
     n = {}
@@ -598,7 +601,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_costs = extract_nodal_costs()
     n_profile = extract_production_profiles(n,
                                             subset=LONG_LIST_LINKS + LONG_LIST_GENS)
-    
+
     plt.close('all')
     ## Figures to extract
     # Storage
@@ -613,27 +616,26 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     storage_horizon = {"H2 Fuel Cell": "LT", "H2 Electrolysis": "LT", "H2 Store": "LT"}
     n_h2 = extract_storage_units(n, color_shift, storage_function, storage_horizon,
                                  both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
-                                                  "H2 Store": "[TWh_{lhv,h2}]"})
+                                                   "H2 Store": "[TWh_{lhv,h2}]"})
 
     n_res_pot = extract_res_potential(n)
-    
 
     # Todo : put in a separate function
     # extract
     csvs.mkdir(parents=True, exist_ok=True)
-    
+
     # Figures
     n_sto.savefig(Path(csvs, "storage_unit.png"))
     n_h2.savefig(Path(csvs, "h2_production.png"))
     extract_series(n)
-    
+
     # extract country specific capacities
     ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
     H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
     capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
-    
-    #Non country specific
+
+    # Non country specific
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
     ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
     H2_grid.to_csv(Path(csvs, "H2_network_capacities.csv"))
@@ -642,12 +644,13 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # extract temporal profiles
     n_loads.to_csv(Path(csvs, "loads_profiles.csv"))
     n_profile.to_csv(Path(csvs, "generation_profiles.csv"))
-    
+
     logger.info(f"Exported files to folder : {csvs}")
     return
 
+
 # %% Unit countries capacities load
-def _load(techs, historical = "Historical (installed capacity by 2025)", countries=None):
+def _load(techs, historical="Historical (installed capacity by 2025)", countries=None):
     """
     
     Parameters
@@ -667,29 +670,30 @@ def _load(techs, historical = "Historical (installed capacity by 2025)", countri
 .
 
     """
-    df = ( 
+    df = (
         pd.read_csv(Path(csvs, "units_capacities_countries.csv"), header=0)
         .drop(columns=["units"])
         .query("carrier in @techs")
     )
     if countries:
         df = df.query("node in @countries")
-        
+
     return (
         df.groupby(by="carrier").sum().reset_index()
         .reindex(columns=excel_columns["all_years"])
         .rename(columns={"hist": historical})
     )
 
+
 def load_res_capacities():
     return (
-        _load(RES, historical = "Historical (planned by 2022)")
+        _load(RES, historical="Historical (planned by 2022)")
     )
 
 
 def load_res_capacities_be():
     return (
-        _load(RES, countries=["BE"], historical = "Historical (planned by 2022)")
+        _load(RES, countries=["BE"], historical="Historical (planned by 2022)")
     )
 
 
@@ -707,13 +711,13 @@ def load_production_be():
 
 def load_balance():
     return (
-        _load(BALANCE, historical = "Historical")
+        _load(BALANCE, historical="Historical")
     )
 
 
 def load_balance_be():
     return (
-        _load(BALANCE, countries=["BE"], historical = "Historical")
+        _load(BALANCE, countries=["BE"], historical="Historical")
     )
 
 
@@ -725,7 +729,7 @@ def load_long_term_storage():
 
 def load_long_term_storage_be():
     return (
-        _load(LONG_TERM_STORAGE,countries=["BE"])
+        _load(LONG_TERM_STORAGE, countries=["BE"])
     )
 
 
@@ -737,32 +741,35 @@ def load_short_term_storage():
 
 def load_short_term_storage_be():
     return (
-        _load(SHORT_TERM_STORAGE,countries=["BE"])
+        _load(SHORT_TERM_STORAGE, countries=["BE"])
     )
+
 
 def load_fossil_fuels():
     return (
-        _load(FF_ELEC+FF_HEAT)
+        _load(FF_ELEC + FF_HEAT)
     )
 
 
 def load_fossil_fuels_be():
     return (
-        _load(FF_ELEC+FF_HEAT,countries=["BE"])
+        _load(FF_ELEC + FF_HEAT, countries=["BE"])
     )
+
 
 def load_h2_capacities():
     return (
         _load(H2)
     )
 
+
 def load_h2_capacities_be():
     return (
-        _load(H2,countries=["BE"])
+        _load(H2, countries=["BE"])
     )
 
 
-#%% Costs load
+# %% Costs load
 def load_costs_total():
     return (
         pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
@@ -774,11 +781,9 @@ def load_costs_res():
     return pd.DataFrame()
 
 
-
 def load_costs_flex():
     # ToDo Add segments and subsegments
     return pd.DataFrame()
-
 
 
 def load_costs_segments():
@@ -796,13 +801,12 @@ def load_costs_type():
     return pd.DataFrame()
 
 
-
 # %% Non standard loads
 
 def load_gas_phase_out():
     return (
         pd.read_csv(Path(csvs, "gas_phase_out.csv"), header=0)
-        .reindex(columns= excel_columns["first_hist_units"])
+        .reindex(columns=excel_columns["first_hist_units"])
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
@@ -810,7 +814,7 @@ def load_gas_phase_out():
 def load_grid_capacities():
     return (
         pd.read_csv(Path(csvs, "grid_capacities.csv"), header=0)
-        .reindex(columns= excel_columns["all_years_units"])
+        .reindex(columns=excel_columns["all_years_units"])
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
@@ -819,7 +823,7 @@ def load_grid_capacities_countries():
     return (
         pd.read_csv(Path(csvs, "grid_capacities_countries.csv"), header=0)
         .groupby('Year').sum(numeric_only=True)
-        .loc[:,['LU', 'GB', 'NL', 'DE', 'FR']]
+        .loc[:, ['LU', 'GB', 'NL', 'DE', 'FR']]
         .reset_index()
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
@@ -828,7 +832,7 @@ def load_grid_capacities_countries():
 def load_h2_network_capacities():
     return (
         pd.read_csv(Path(csvs, "H2_network_capacities.csv"), header=0)
-        .reindex(columns= excel_columns["all_years_units"])
+        .reindex(columns=excel_columns["all_years_units"])
         .rename(columns={"hist": "Historical (planned by 2025)"})
     )
 
@@ -846,8 +850,8 @@ def load_h2_network_capacities_countries():
 def load_res_potentials():
     return (
         pd.read_csv(Path(csvs, "res_potentials.csv"), header=0)
-        .drop(columns= years_str[:-1])
-        .reindex(columns= excel_columns["last_units"])
+        .drop(columns=years_str[:-1])
+        .reindex(columns=excel_columns["last_units"])
     )
 
 
@@ -869,6 +873,7 @@ def load_industrial_demand():
         .groupby(by=["Load", "Years"]).agg({"Annual sum [TWh]": "sum"}).reset_index()
     )
 
+
 def load_production_profile():
     return (
         pd.read_csv(Path(csvs, "generation_profiles.csv"), header=0)
@@ -882,7 +887,8 @@ def load_production_profile():
         .reset_index()
     )
 
-#%%
+
+# %%
 def export_data():
     outputs = [
         # Standard load
@@ -900,7 +906,7 @@ def export_data():
         "fossil_fuels_be",
         "h2_capacities",
         "h2_capacities_be",
-        
+
         # Costs
         "costs_total",
         "costs_res",
@@ -908,7 +914,7 @@ def export_data():
         "costs_segments",
         "costs_thermal",
         "costs_type",
-        
+
         # Non standard
         "gas_phase_out",
         "grid_capacities",
@@ -919,7 +925,7 @@ def export_data():
         "h2_production",
         "industrial_demand",
         "production_profile",
-        
+
     ]
 
     with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
@@ -928,12 +934,12 @@ def export_data():
     return
 
 
-#%% Main
+# %% Main
 if __name__ == "__main__":
     # for testing
     path = Path("analysis", "VEKA_av_bio_fix")
     years = [2030, 2040, 2050]
-    years_str = list(map(str,years))
+    years_str = list(map(str, years))
     dir_export = "graph_data"
     n_path = Path(path, "results")
 
@@ -962,8 +968,7 @@ if __name__ == "__main__":
     eu27_countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE",
                       "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
 
-
-    #Todo : type cast all references to year into str or int
+    # Todo : type cast all references to year into str or int
     excel_columns = {"all_years": ["carrier", "hist"] + years_str,
                      "all_years_units": ["carrier", "hist"] + years_str + ["units"],
                      "future_years": ["carrier"] + years_str,
@@ -971,7 +976,7 @@ if __name__ == "__main__":
                      "last_hist_units": ["carrier", "hist"] + [years_str[-1], "units"],
                      "last_units": ["carrier"] + [years_str[-1], "units"],
                      "first_hist_units": ["carrier", "hist"] + [years_str[0], "units"]}
-    
+
     countries = None  # ["BE","DE","FR","UK"]
     export = 'y'
     if csvs.exists() and csvs.is_dir() and export:
