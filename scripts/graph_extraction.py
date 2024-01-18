@@ -452,16 +452,16 @@ def extract_nodal_costs():
                       skiprows=3,
                       header=0)
           .reset_index()
-          .rename(columns={"planning_horizon": "Type",
-                           "level_1": "Cost",
-                           "level_2": "Country",
-                           "level_3": "Tech"})
+          .rename(columns={"planning_horizon": "type",
+                           "level_1": "cost",
+                           "level_2": "country",
+                           "level_3": "carrier"})
           )
-    df['Country'] = df['Country'].str[:2].fillna('')
-    df.loc[df.Tech.isin(["gas", "biomass"]) & df.Cost.str.contains('marginal') & df.Type.str.contains(
-        'generators'), 'Cost'] = 'fuel'
-    df = df.set_index(['Type', 'Cost', 'Country', 'Tech'])
-    df = df.fillna(0).groupby(['Type', 'Cost', 'Country', 'Tech']).sum()
+    df['country'] = df['country'].str[:2].fillna('')
+    df.loc[df.carrier.isin(["gas", "biomass"]) & df.cost.str.contains('marginal') & df.type.str.contains(
+        'generators'), 'cost'] = 'fuel'
+    df = df.set_index(['type', 'cost', 'country', 'carrier'])
+    df = df.fillna(0).groupby(['type', 'cost', 'country', 'carrier']).sum()
     df = df.loc[~df.apply(lambda x: x < 1e3).all(axis=1)]
     df.insert(0, column="units", value="Euro")
     return df
@@ -725,6 +725,40 @@ def load_h2_capacities_be():
 
 
 # %% Costs load
+
+def _load_costs(year,countries=None):
+    df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
+    if countries:
+        df = df.query("country in @countries")
+    cost_mapping = pd.read_csv(
+        Path(path.resolve().parents[2], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
+    return (
+        df.merge(cost_mapping, left_on=["carrier", "type"], right_index=True, how="left")
+        .groupby(["cost_segment","cost"]).sum(numeric_only=True)
+        .reset_index()
+        .pivot(columns="cost",values=year,index="cost_segment").fillna(0)
+        .reset_index()
+    )
+    
+
+def load_costs_2030_be():
+    return ( 
+        _load_costs("2030",countries=["BE"])
+    )
+
+
+def load_costs_2040_be():
+    return ( 
+        _load_costs("2040",countries=["BE"])
+    )
+
+
+def load_costs_2050_be():
+    return ( 
+        _load_costs("2050",countries=["BE"])
+    )
+
+
 def load_costs_total():
     return (
         pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
@@ -864,11 +898,14 @@ def export_data():
 
         # Costs
         "costs_total",
+        "costs_2030_be",
+        "costs_2040_be",
+        "costs_2050_be",
         "costs_res",
-        "costs_flex",
-        "costs_segments",
-        "costs_thermal",
-        "costs_type",
+        # "costs_flex",
+        # "costs_segments",
+        # "costs_thermal",
+        # "costs_type",
 
         # Non standard
         "gas_phase_out",
