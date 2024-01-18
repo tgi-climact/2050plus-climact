@@ -185,19 +185,6 @@ def reduce_to_countries(df, index):
     return df.loc[df.loc[:, buses].applymap(lambda x: x in index).values.any(axis=1)]
 
 
-def select_countries(n, countries):
-    index = n.buses.loc[n.buses.country.isin(countries)].index
-    n.generators = reduce_to_countries(n.generators, index)
-    n.lines = reduce_to_countries(n.lines, index)
-    n.links = reduce_to_countries(n.links, index)
-    n.stores = reduce_to_countries(n.stores, index)
-    n.storage_units = reduce_to_countries(n.storage_units, index)
-    n.loads_t.p = n.loads_t.p.loc[:, n.loads_t.p.columns.str[:2].isin(countries)]
-    n.loads_t.p_set = n.loads_t.p_set.loc[:, n.loads_t.p_set.columns.str[:2].isin(countries)]
-    n.buses = n.buses.loc[index]
-    return n
-
-
 def get_state_of_charge_t(n, carrier):
     df = n.storage_units_t.state_of_charge.T.reset_index()
     df = df.merge(n.storage_units.reset_index()[["carrier", "StorageUnit"]], on="StorageUnit")
@@ -268,55 +255,6 @@ def extract_production_profiles(n, subset):
     df.insert(0, column="units", value="MWh_e")
     df.loc[(slice(None), slice(None), ['Haber-Bosch', 'ammonia cracker']), 'units'] = 'MWh_lhv,nh3'
     df.loc[(slice(None), slice(None), ['Sabatier']), 'units'] = 'MWh_lhv,h2'
-    return df
-
-
-def extract_production_units(n, subset_gen=None, subset_links=None):
-    carriers_links = ["coal", "lignite", "oil", "biomass"]  # same carrier name than link
-    carriers = carriers_links + ["gas", "uranium"]  # different carrier name than link
-    transmissions = ["DC", "gas pipeline", "gas pipeline new", "CO2 pipeline",
-                     "H2 pipeline", "H2 pipeline retrofitted", "electricity distribution grid"]
-    balance_carriers_transmission_exclude = BALANCE + carriers + transmissions
-
-    n_prod = {}
-    for y, ni in n.items():
-        # Grab data from various sources
-        n_y = pd.concat([
-            ni.links.groupby(by="carrier").sum().p_carrier_nom_opt,
-            ni.generators.groupby(by="carrier").sum().p_nom_opt,
-            ni.storage_units.groupby(by="carrier").sum().p_nom_opt,
-            ni.stores.groupby(by="carrier").sum().e_nom_opt
-        ])
-        n_y = n_y.rename(index=renamer)
-
-        if subset_gen:
-            n_y = n_y[n_y.index.isin(subset_gen)]
-        else:
-            n_y = n_y[~n_y.index.isin(balance_carriers_transmission_exclude)]
-
-        # Grab exceptions for carriers/links   
-        n_y_except = ni.links.groupby(by="carrier").sum().p_carrier_nom_opt
-        n_y_except = n_y_except.rename(index=renamer)
-        if subset_links:
-            n_y_except = n_y_except[n_y_except.index.isin(subset_links)]
-        else:
-            n_y_except = n_y_except[n_y_except.index.isin(carriers_links)]
-        n_prod[y] = pd.concat([n_y, n_y_except])
-
-    df = pd.concat({k: ni.groupby(by="carrier").sum() / 1e3 for k, ni in n_prod.items()}, axis=1).fillna(0)
-
-    if 'Haber-Bosch' in df.index:
-        df.loc['Haber-Bosch', :] *= 4.415385
-    df["units"] = "GW_e"
-
-    unit_change = {'Haber-Bosch': 'GW_lhv,nh3', 'ammonia cracker': 'GW_lhv,nh3', 'Sabatier': 'GW_lhv,h2',
-                   'H2 Store': "GWh_lhv,h2", "home battery": "GWh_e", "battery": "GWh_e"}
-    for i, j in unit_change.items():
-        if i in df.index:
-            df.loc[i, 'units'] = j
-
-    cols = sorted([c for c in df.columns if c not in ["units", "hist"]])
-    df = df[["hist"] + cols + ["units"]]
     return df
 
 
@@ -658,7 +596,7 @@ def _load(techs, historical="Historical (installed capacity by 2025)", countries
     techs : list
         List of techs to filter on.
     historical : str, optional
-        String to repalce hist with. The default is "Historical (installed capacity by 2025)".
+        String to replace hist with. The default is "Historical (installed capacity by 2025)".
     countries : list, optional
         List of countries to filter on. The default is None.
 
