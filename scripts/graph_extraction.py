@@ -475,12 +475,17 @@ def extract_nodal_supply_energy(n):
         df = calculate_nodal_supply_energy(ni, label=labels[y], nodal_supply_energy=df)
     df.index.names = ["carrier", "component", "node", "item"]
     df.columns = df.columns.get_level_values(3)
+    df.index = df.index.set_levels(
+        df.index.get_level_values("node").to_series().apply(lambda x: x[:2]),
+        level="node",
+        verify_integrity=False
+    )
+    df = df * 1e-6 # TWh
 
     sector_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2], header=0).dropna()
     df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left")
     return df
-
 
 
 def extract_loads(n):
@@ -605,7 +610,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
 
 
 # %% Unit countries capacities load
-def _load(techs, historical="Historical (installed capacity by 2025)", countries=None):
+def _load_capacities(techs, historical="Historical (installed capacity by 2025)", countries=None):
     """
     
     Parameters
@@ -640,88 +645,101 @@ def _load(techs, historical="Historical (installed capacity by 2025)", countries
     )
 
 
-def load_res_capacities():
-    return (
-        _load(RES, historical="Historical (planned by 2022)")
+def _load_supply_energy(load=True, carriers= None, countries=None):
+    """
+    Load nodal supply energy data and aggregate on carrier and sector, given some conditions.
+    :param load: If True, keep only load data (negatives values)
+    :param carriers: If specified, keep only a given carrier
+    :param countries: If specified, keep a specific list of countries
+    :return:
+    """
+    df = (
+        pd.read_csv(Path(csvs, "supply_energy_sectors.csv"), header=0)
     )
+
+    def get_load_supply(x):
+        if load:
+            return x.where(x <= 0, np.nan)*-1
+        else:
+            return x.where(x > 0, np.nan)
+    df[years_str] = df[years_str].apply(get_load_supply)
+    df = df.dropna(subset=years_str, how="all")
+
+    if carriers:
+        df = df.query("carrier in @carriers")
+    if countries:
+        df = df.query("node in @countries")
+
+    df = (
+        df.groupby(by=["carrier", "sector"]).sum().reset_index()
+        .reindex(columns=excel_columns["future_years_sector"])
+    )
+
+    return df
+
+
+def load_res_capacities():
+    return _load_capacities(RES, historical="Historical (planned by 2022)")
 
 
 def load_res_capacities_be():
-    return (
-        _load(RES, countries=["BE"], historical="Historical (planned by 2022)")
-    )
+    return _load_capacities(RES, countries=["BE"], historical="Historical (planned by 2022)")
 
 
 def load_production():
-    return (
-        _load(PRODUCTION)
-    )
+    return _load_capacities(PRODUCTION)
 
 
 def load_production_be():
-    return (
-        _load(PRODUCTION, countries=["BE"])
-    )
+    return _load_capacities(PRODUCTION, countries=["BE"])
 
 
 def load_balance():
-    return (
-        _load(BALANCE, historical="Historical")
-    )
+    return _load_capacities(BALANCE, historical="Historical")
 
 
 def load_balance_be():
-    return (
-        _load(BALANCE, countries=["BE"], historical="Historical")
-    )
+    return _load_capacities(BALANCE, countries=["BE"], historical="Historical")
 
 
 def load_long_term_storage():
-    return (
-        _load(LONG_TERM_STORAGE)
-    )
+    return _load_capacities(LONG_TERM_STORAGE)
 
 
 def load_long_term_storage_be():
-    return (
-        _load(LONG_TERM_STORAGE, countries=["BE"])
-    )
+    return _load_capacities(LONG_TERM_STORAGE, countries=["BE"])
 
 
 def load_short_term_storage():
-    return (
-        _load(SHORT_TERM_STORAGE)
-    )
+    return _load_capacities(SHORT_TERM_STORAGE)
 
 
 def load_short_term_storage_be():
-    return (
-        _load(SHORT_TERM_STORAGE, countries=["BE"])
-    )
+    return _load_capacities(SHORT_TERM_STORAGE, countries=["BE"])
 
 
 def load_fossil_fuels():
-    return (
-        _load(FF_ELEC + FF_HEAT)
-    )
+    return _load_capacities(FF_ELEC + FF_HEAT)
 
 
 def load_fossil_fuels_be():
-    return (
-        _load(FF_ELEC + FF_HEAT, countries=["BE"])
-    )
+    return _load_capacities(FF_ELEC + FF_HEAT, countries=["BE"])
 
 
 def load_h2_capacities():
-    return (
-        _load(H2)
-    )
+    return _load_capacities(H2)
 
 
 def load_h2_capacities_be():
-    return (
-        _load(H2, countries=["BE"])
-    )
+    return _load_capacities(H2, countries=["BE"])
+
+
+def load_load_sectors():
+    return _load_supply_energy(load=True)
+
+
+def load_load_sectors_be():
+    return _load_supply_energy(load=True, countries=["BE"])
 
 
 # %% Costs load
@@ -861,6 +879,8 @@ def export_data():
         "fossil_fuels_be",
         "h2_capacities",
         "h2_capacities_be",
+        "load_sectors",
+        "load_sectors_be",
 
         # Costs
         "costs_total",
@@ -927,6 +947,7 @@ if __name__ == "__main__":
     excel_columns = {"all_years": ["carrier", "hist"] + years_str,
                      "all_years_units": ["carrier", "hist"] + years_str + ["units"],
                      "future_years": ["carrier"] + years_str,
+                     "future_years_sector": ["carrier", "sector"] + years_str,
                      "first_year_units": ["carrier"] + [years_str[0], "units"],
                      "last_hist_units": ["carrier", "hist"] + [years_str[-1], "units"],
                      "last_units": ["carrier"] + [years_str[-1], "units"],
