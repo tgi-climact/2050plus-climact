@@ -21,6 +21,7 @@ from yaml import safe_load
 from make_summary import assign_carriers
 from make_summary import assign_locations
 from make_summary import calculate_nodal_capacities
+from make_summary import calculate_nodal_supply_energy
 from plot_network import plot_series
 
 logger = logging.getLogger(__name__)
@@ -466,6 +467,22 @@ def extract_nodal_costs():
     return df
 
 
+def extract_nodal_supply_energy(n):
+    labels = {y: label[:-1] + (y, ) for y in n.keys()}
+    columns = pd.MultiIndex.from_tuples(labels.values(), names=["cluster", "ll", "opt", "planning_horizon"])
+    df = pd.DataFrame(columns=columns, dtype=float)
+    for y, ni in n.items():
+        df = calculate_nodal_supply_energy(ni, label=labels[y], nodal_supply_energy=df)
+    df.index.names = ["carrier", "component", "node", "item"]
+    df.columns = df.columns.get_level_values(3)
+
+    sector_mapping = pd.read_csv(
+        Path(path.resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2], header=0).dropna()
+    df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left")
+    return df
+
+
+
 def extract_loads(n):
     profiles = {}
     for y, ni in n.items():
@@ -538,6 +555,8 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     H2_grid, H2_countries = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"], )
     n_costs = extract_nodal_costs()
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
+    n_res_pot = extract_res_potential(n)
+    nodal_supply_energy = extract_nodal_supply_energy(n)
 
     plt.close('all')
     ## Figures to extract
@@ -555,8 +574,6 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
                                  both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                                    "H2 Store": "[TWh_{lhv,h2}]"})
 
-    n_res_pot = extract_res_potential(n)
-
     # Todo : put in a separate function
     # extract
     csvs.mkdir(parents=True, exist_ok=True)
@@ -571,6 +588,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
     capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
+    nodal_supply_energy.to_csv(Path(csvs, 'supply_energy_sectors.csv'))
 
     # Non country specific
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
@@ -859,10 +877,9 @@ def export_data():
         "h2_network_capacities",
         "h2_network_capacities_countries",
         "res_potentials",
-        "h2_production",
+        # "h2_production",
         "industrial_demand",
-        "production_profile",
-
+        # "production_profile",
     ]
 
     with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
@@ -885,6 +902,7 @@ if __name__ == "__main__":
     opts = ""
     sector_opts = "3H-I-T-H-B-A"
     ll = "v3.0"
+    label = (cluster, ll, sector_opts, years)
 
     networks_dict = {
         planning_horizon: "results/"

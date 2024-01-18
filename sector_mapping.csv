@@ -1,0 +1,310 @@
+﻿carrier,component,item,sector
+AC,generators,offwind-ac,
+AC,generators,onwind,
+AC,generators,ror,
+AC,generators,solar,
+AC,generators,offwind,
+AC,generators,offwind-dc,
+AC,lines,AC0,
+AC,lines,AC1,
+low voltage,loads,agriculture electricity,agriculture
+oil,loads,agriculture machinery oil,agriculture
+AC,links,links,
+AC,links,electricity distribution grid0,
+services rural heat,loads,agriculture heat,agriculture
+AC,links,H2 Fuel Cell1,
+AC,links,Haber-Bosch0,Ammonia production
+AC,links,battery discharger1,
+AC,links,CCGT1,
+AC,links,OCGT1,
+AC,links,urban central gas CHP CC1,
+AC,links,urban central gas CHP1,
+AC,links,solid biomass1,
+AC,links,urban central solid biomass CHP CC1,
+AC,links,urban central solid biomass CHP1,
+AC,links,residential rural ground heat pump0,
+AC,links,residential urban decentral air heat pump0,
+AC,links,services rural ground heat pump0,
+AC,links,services urban decentral air heat pump0,
+AC,links,urban central air heat pump0,
+AC,links,residential rural resistive heater0,
+AC,links,residential urban decentral resistive heater0,
+AC,links,services rural resistive heater0,
+AC,links,services urban decentral resistive heater0,
+AC,links,urban central resistive heater0,
+AC,links,DC0,
+AC,links,DC1,
+AC,links,coal1,
+AC,links,lignite1,
+AC,links,oil1,
+AC,links,nuclear (SMR)1,
+AC,links,nuclear1,
+oil,loads,kerosene for aviation,aviation
+AC,storage_units,hydro,
+AC,storage_units,PHS,
+H2,links,H2 Electrolysis1,
+gas,links,residential rural gas boiler0,buildings
+gas,links,residential rural micro gas CHP0,buildings
+gas,links,residential urban decentral gas boiler0,buildings
+H2,links,H2 pipeline retrofitted0,
+H2,links,H2 pipeline retrofitted1,
+H2,links,H2 pipeline0,
+H2,links,H2 pipeline1,
+gas,links,residential urban decentral micro gas CHP0,buildings
+gas,links,services rural gas boiler0,buildings
+H2,links,SMR CC1,
+H2,links,SMR1,
+H2,links,ammonia cracker1,
+gas,links,services rural micro gas CHP0,buildings
+gas,links,services urban decentral gas boiler0,buildings
+H2,stores,H2 Store,
+Li ion,links,V2G0,
+Li ion,links,BEV charger1,
+Li ion,loads,land transport EV,
+Li ion,stores,battery storage,
+NH3,links,Haber-Bosch1,
+NH3,links,ammonia cracker0,
+NH3,loads,NH3,
+NH3,stores,ammonia store,
+battery,links,battery charger1,
+battery,links,battery discharger0,
+battery,stores,battery,
+biogas,links,biogas to gas0,
+biogas,stores,biogas,
+co2,links,biogas to gas2,
+co2,links,CCGT2,
+co2,links,OCGT2,
+co2,links,SMR CC2,
+co2,links,SMR2,
+co2,links,gas for industry CC2,
+co2,links,gas for industry2,
+co2,links,residential rural gas boiler2,
+co2,links,residential rural micro gas CHP3,
+co2,links,residential urban decentral gas boiler2,
+co2,links,residential urban decentral micro gas CHP3,
+co2,links,services rural gas boiler2,
+co2,links,services rural micro gas CHP3,
+co2,links,services urban decentral gas boiler2,
+co2,links,services urban decentral micro gas CHP3,
+co2,links,urban central gas CHP CC3,
+co2,links,urban central gas CHP3,
+co2,links,urban central gas boiler2,
+co2,links,process emissions CC1,
+co2,links,process emissions1,
+co2,links,BioSNG3,
+co2,links,biomass to liquid2,
+co2,links,solid biomass for industry CC2,
+co2,links,solid biomass2,
+co2,links,urban central solid biomass CHP CC3,
+co2,links,coal2,
+co2,links,lignite2,
+co2,links,oil2,
+co2,links,residential rural oil boiler2,
+co2,links,residential urban decentral oil boiler2,
+co2,links,services rural oil boiler2,
+co2,links,services urban decentral oil boiler2,
+co2,links,urban central oil boiler2,
+co2,links,nuclear (SMR)2,
+co2,links,nuclear2,
+co2,links,DAC0,
+co2,loads,agriculture machinery oil emissions,
+co2,loads,land transport oil emissions,
+co2,loads,oil emissions,
+co2,loads,shipping methanol emissions,
+co2,loads,shipping oil emissions,
+co2,stores,co2,
+co2 stored,links,helmeth2,
+co2 stored,links,Fischer-Tropsch2,
+co2 stored,links,Sabatier2,
+co2 stored,links,methanolisation3,
+co2 stored,links,CO2 pipeline0,
+co2 stored,links,CO2 pipeline1,
+co2 stored,links,SMR CC3,
+co2 stored,links,gas for industry CC3,
+co2 stored,links,urban central gas CHP CC4,
+co2 stored,links,process emissions CC2,
+co2 stored,links,BioSNG2,
+co2 stored,links,biomass to liquid3,
+co2 stored,links,solid biomass for industry CC3,
+co2 stored,links,urban central solid biomass CHP CC4,
+co2 stored,links,coal3,
+co2 stored,links,DAC1,
+co2 stored,stores,co2 stored,
+coal,generators,coal,
+coal,links,coal0,
+coal,stores,coal,
+gas,generators,gas,
+gas,links,services urban decentral micro gas CHP0,buildings
+gas,links,urban central gas CHP CC0,buildings
+gas,links,biogas to gas1,
+gas,links,urban central gas CHP0,buildings
+gas,links,urban central gas boiler0,buildings
+low voltage,links,BEV charger0,transport
+low voltage,loads,electricity,residual
+low voltage,links,electricity distribution grid1,
+low voltage,links,home battery charger0,
+gas,links,gas pipeline new0,
+gas,links,gas pipeline new1,
+gas,links,gas pipeline0,
+gas,links,gas pipeline1,
+low voltage,links,home battery discharger1,
+low voltage,loads,industry electricity,industry
+low voltage,links,residential rural ground heat pump0,buildings
+low voltage,links,residential rural micro gas CHP1,
+low voltage,links,residential rural resistive heater0,buildings
+low voltage,links,residential urban decentral air heat pump0,buildings
+residential rural heat,loads,residential rural heat,buildings
+residential urban decentral heat,loads,residential urban decentral heat,buildings
+services rural heat,loads,services rural heat,buildings
+services urban decentral heat,loads,services urban decentral heat,buildings
+solid biomass,links,residential rural biomass boiler0,buildings
+gas,links,BioSNG1,
+gas,stores,gas,
+gas for industry,links,gas for industry CC1,
+gas for industry,links,gas for industry1,
+gas for industry,loads,gas for industry,
+home battery,links,home battery discharger0,
+home battery,links,home battery charger1,
+home battery,stores,home battery,
+lignite,generators,lignite,
+lignite,links,lignite0,
+lignite,stores,lignite,
+low voltage,links,residential urban decentral micro gas CHP1,
+low voltage,links,residential urban decentral resistive heater0,buildings
+low voltage,links,services rural ground heat pump0,buildings
+low voltage,links,services rural micro gas CHP1,
+low voltage,links,services rural resistive heater0,buildings
+low voltage,links,services urban decentral air heat pump0,buildings
+low voltage,links,services urban decentral micro gas CHP1,
+low voltage,links,services urban decentral resistive heater0,buildings
+solid biomass,links,residential urban decentral biomass boiler0,buildings
+low voltage,generators,solar rooftop,
+solid biomass,links,services rural biomass boiler0,buildings
+solid biomass,links,services urban decentral biomass boiler0,buildings
+solid biomass,links,urban central solid biomass CHP CC0,buildings
+solid biomass,links,urban central solid biomass CHP0,buildings
+urban central heat,loads,urban central heat,buildings
+AC,links,DAC2,DAC
+H2,links,Fischer-Tropsch0,Efuels production
+H2,links,Haber-Bosch2,H2 for sectors
+H2,links,H2 Fuel Cell0,H2 for sectors
+H2,links,Sabatier0,H2 for sectors
+H2,links,methanolisation0,H2 for sectors
+H2,loads,H2 for industry,H2 for sectors
+H2,loads,land transport fuel cell,H2 for sectors
+methanol,links,methanolisation1,
+AC,links,H2 Electrolysis0,Hydrogen production
+methanol,stores,methanol,
+oil,generators,oil,
+oil,links,Fischer-Tropsch1,
+oil,links,biomass to liquid1,
+oil,links,oil0,
+oil,links,residential rural oil boiler0,
+oil,links,residential urban decentral oil boiler0,
+oil,links,services rural oil boiler0,
+oil,links,services urban decentral oil boiler0,
+oil,links,urban central oil boiler0,
+gas,links,SMR CC0,Hydrogen production
+gas,links,SMR0,Hydrogen production
+gas,links,gas for industry CC0,industry
+gas,links,gas for industry0,industry
+low voltage,links,urban central air heat pump0,buildings
+oil,stores,oil,
+process emissions,links,process emissions CC0,
+process emissions,links,process emissions0,
+process emissions,loads,process emissions,
+residential rural heat,generators,residential rural solar thermal,
+residential rural heat,links,residential rural gas boiler1,
+residential rural heat,links,residential rural micro gas CHP2,
+residential rural heat,links,residential rural ground heat pump1,
+residential rural heat,links,residential rural resistive heater1,
+residential rural heat,links,residential rural water tanks charger0,
+residential rural heat,links,residential rural water tanks discharger1,
+residential rural heat,links,residential rural biomass boiler1,
+residential rural heat,links,residential rural oil boiler1,
+oil,loads,naphtha for industry,industry
+residential rural water tanks,links,residential rural water tanks charger1,
+residential rural water tanks,links,residential rural water tanks discharger0,
+residential rural water tanks,stores,residential rural water tanks,
+residential urban decentral heat,generators,residential urban decentral solar thermal,
+residential urban decentral heat,links,residential urban decentral gas boiler1,
+residential urban decentral heat,links,residential urban decentral micro gas CHP2,
+residential urban decentral heat,links,residential urban decentral air heat pump1,
+residential urban decentral heat,links,residential urban decentral resistive heater1,
+residential urban decentral heat,links,residential urban decentral water tanks charger0,
+residential urban decentral heat,links,residential urban decentral water tanks discharger1,
+residential urban decentral heat,links,residential urban decentral biomass boiler1,
+residential urban decentral heat,links,residential urban decentral oil boiler1,
+solid biomass,links,solid biomass for industry CC0,industry
+residential urban decentral water tanks,links,residential urban decentral water tanks charger1,
+residential urban decentral water tanks,links,residential urban decentral water tanks discharger0,
+residential urban decentral water tanks,stores,residential urban decentral water tanks,
+services rural heat,generators,services rural solar thermal,
+services rural heat,links,services rural gas boiler1,
+services rural heat,links,services rural micro gas CHP2,
+services rural heat,links,services rural ground heat pump1,
+services rural heat,links,services rural resistive heater1,
+services rural heat,links,services rural water tanks charger0,
+services rural heat,links,services rural water tanks discharger1,
+services rural heat,links,services rural biomass boiler1,
+services rural heat,links,services rural oil boiler1,
+solid biomass,links,solid biomass for industry0,industry
+urban central heat,loads,low-temperature heat for industry,industry
+services rural water tanks,links,services rural water tanks charger1,
+services rural water tanks,links,services rural water tanks discharger0,
+services rural water tanks,stores,services rural water tanks,
+services urban decentral heat,generators,services urban decentral solar thermal,
+services urban decentral heat,links,services urban decentral gas boiler1,
+services urban decentral heat,links,services urban decentral micro gas CHP2,
+services urban decentral heat,links,services urban decentral air heat pump1,
+services urban decentral heat,links,services urban decentral resistive heater1,
+services urban decentral heat,links,services urban decentral water tanks charger0,
+services urban decentral heat,links,services urban decentral water tanks discharger1,
+services urban decentral heat,links,services urban decentral biomass boiler1,
+services urban decentral heat,links,services urban decentral oil boiler1,
+services urban decentral heat,links,DAC3,
+AC,links,helmeth0,Methane production
+services urban decentral water tanks,links,services urban decentral water tanks charger1,
+services urban decentral water tanks,links,services urban decentral water tanks discharger0,
+services urban decentral water tanks,stores,services urban decentral water tanks,
+solid biomass,links,BioSNG0,
+solid biomass,links,biomass to liquid0,
+gas,links,helmeth1,Methane production
+gas,links,Sabatier1,Methane production
+AC,links,methanolisation2,Methanol production
+gas,links,CCGT0,power supply
+gas,links,OCGT0,power supply
+low voltage,links,urban central resistive heater0,buildings
+solid biomass,links,solid biomass transport0,
+solid biomass,links,solid biomass transport1,
+solid biomass,links,solid biomass0,
+methanol,loads,shipping methanol,shipping
+oil,loads,shipping oil,shipping
+solid biomass,stores,solid biomass,
+solid biomass for industry,links,solid biomass for industry CC1,
+solid biomass for industry,links,solid biomass for industry1,
+solid biomass for industry,loads,solid biomass for industry,
+uranium,generators,uranium,
+uranium,links,nuclear (SMR)0,
+uranium,links,nuclear0,
+uranium,stores,uranium,
+urban central heat,generators,urban central solar thermal,
+urban central heat,links,H2 Electrolysis2,
+urban central heat,links,Fischer-Tropsch3,
+urban central heat,links,H2 Fuel Cell2,
+urban central heat,links,urban central gas CHP CC2,
+urban central heat,links,urban central gas CHP2,
+urban central heat,links,urban central gas boiler1,
+urban central heat,links,urban central air heat pump1,
+urban central heat,links,urban central resistive heater1,
+urban central heat,links,urban central solid biomass CHP CC2,
+urban central heat,links,urban central solid biomass CHP2,
+urban central heat,links,urban central water tanks charger0,
+urban central heat,links,urban central water tanks discharger1,
+urban central heat,links,urban central oil boiler1,
+urban central heat,links,DAC3,
+low voltage,links,V2G1,
+oil,loads,land transport oil,transport
+urban central water tanks,links,urban central water tanks charger1,
+urban central water tanks,links,urban central water tanks discharger0,
+urban central water tanks,stores,urban central water tanks,
