@@ -954,7 +954,7 @@ def plot_map_without(network):
 
 
 def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
-                stop = "2014-01-01", year = "2013", colors = None):
+                _stop = "-02-01", _start = "-01-01", year = "2013", colors = None):
     n = network.copy()
     assign_location(n)
     assign_carriers(n)
@@ -1013,7 +1013,8 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
     # 14-21.2 for flaute
     # 19-26.1 for flaute
 
-    start = "2013-01-01"
+    start = year + _start
+    stop = year + _stop
 
     threshold = 10e3
 
