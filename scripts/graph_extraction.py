@@ -438,8 +438,8 @@ def extract_country_capacities(n):
     df_capa.loc[(slice(None), ["Sabatier"]), "units"] = "GW_lhv,h2"
     df_capa.loc[(slice(None), ["H2 Store"]), "units"] = "GWh_lhv,h2"
     df_capa.loc[(slice(None), ["battery", "home battery"]), "units"] = "GWh_e"
-    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction", "coal/lignite_extraction", "uranium_extraction",
-                               "solid biomass_extraction"]), "units"] = "GW_lhv"
+    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction", 
+                               "coal/lignite_extraction", "uranium_extraction"]), "units"] = "GW_lhv"
     return df_capa
 
 
