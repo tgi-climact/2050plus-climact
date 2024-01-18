@@ -876,7 +876,7 @@ def export_data():
 # %% Main
 if __name__ == "__main__":
     # for testing
-    path = Path("analysis", "VEKA_av_bio_fix")
+    path = Path("analysis", "VEKA_av_bio_fix_nuc")
     years = [2030, 2040, 2050]
     years_str = list(map(str, years))
     dir_export = "graph_data"
