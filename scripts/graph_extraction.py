@@ -515,8 +515,9 @@ def extract_series(n):
         with open(Path(path, 'results/configs/config.yaml'), 'r') as f:
             df = safe_load(f)["plotting"]["tech_colors"]
             for y, ni in n.items():
-                prod_profiles = plot_series(ni, carrier="AC", name="AC", year = str(y),
-                                            load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
+                with pd.option_context('mode.chained_assignment', None):
+                    prod_profiles = plot_series(ni, carrier="AC", name="AC", year = str(y),
+                                                load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
 
 
 def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0", 2035: "C1", 2040: "C2"}):
