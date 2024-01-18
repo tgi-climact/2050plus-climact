@@ -1069,6 +1069,7 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
     supply = supply.groupby(supply.columns, axis=1).sum()
     if load_only:
         new_columns = (supply.std()/supply.mean()).sort_values().index
+    supply.index = pd.to_datetime(pd.DatetimeIndex(supply.index.values).strftime(f'{year}-%m-%d-%H'))
     fig, ax = plt.subplots()
     fig.set_size_inches((8, 5))
 

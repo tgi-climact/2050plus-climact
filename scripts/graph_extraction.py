@@ -345,6 +345,7 @@ def extract_storage_units(n, color_shift, storage_function, storage_horizon, bot
     fig = plt.figure(figsize=(14, 8))
 
     def plotting(ax, title, data, y, unit):
+        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime('2030-%m-%d-%H'))
         ax.plot(data, label=y, color=color_shift.get(y))
         ax.set_title(title)
         ax.spines['top'].set_visible(False)
@@ -492,7 +493,7 @@ def extract_series(n):
         with open(Path(path, 'results/configs/config.yaml'), 'r') as f:
             df = safe_load(f)["plotting"]["tech_colors"]
             for y, ni in n.items():
-                prod_profiles = plot_series(ni, carrier="AC", name="AC",
+                prod_profiles = plot_series(ni, carrier="AC", name="AC", year = y,
                                             load_only=True, stop="2013-02-01",
                                             colors=df, path=Path(csvs, f"series_AC_{y}.png"))
 
