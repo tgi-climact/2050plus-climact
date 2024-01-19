@@ -36,7 +36,7 @@ LONG_LIST_GENS = ["solar", "solar rooftop", "onwind", "offwind", "offwind-ac", "
                   "ror", "nuclear", "urban central solid biomass CHP",
                   "home battery", "battery", "H2 Store", "ammonia store"]
 
-RENAMER = renamer = {
+RENAMER = {
     # Carriers
     "offwind-dc": "offwind",
     "offwind-ac": "offwind",
@@ -225,7 +225,7 @@ def get_p_carrier_nom_t(n, carrier):
 #             ni.generators,
 #             ni.storage_units
 #         ])
-#         n_y = n_y.rename(index=renamer)
+#         n_y = n_y.rename(index=RENAMER)
 #
 #         # sorting the carriers
 #         n_y_t = n_y_t.loc[:, n_y.index]
@@ -269,7 +269,7 @@ def extract_res_potential(n):
     for y, ni in n.items():
         df = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
         df[dimensions] = df["Generator"].str.extract(rx)
-        df["carrier"] = df["carrier"].str.rstrip("-").replace(renamer)
+        df["carrier"] = df["carrier"].str.rstrip("-").replace(RENAMER)
         df["planning horizon"] = y
         df = df[df["carrier"].isin(["onwind", "offwind", "solar"])]
         dfx.append(df.groupby(["planning horizon", "carrier", "build_year"]).sum(numeric_only=True) / 1e3)  # GW
@@ -415,7 +415,7 @@ def extract_country_capacities(n):
                                                                        "Link": "p_carrier"})
 
     df_capa = (df["nodal_capacities"]
-               .rename(renamer)
+               .rename(RENAMER)
                .reset_index()
                .rename(columns={"level_0": "unit_type",
                                 "level_1": "node",
@@ -440,7 +440,7 @@ def extract_country_capacities(n):
     df_capa.loc[(slice(None), ["Sabatier"]), "units"] = "GW_lhv,h2"
     df_capa.loc[(slice(None), ["H2 Store"]), "units"] = "GWh_lhv,h2"
     df_capa.loc[(slice(None), ["battery", "home battery"]), "units"] = "GWh_e"
-    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction", 
+    df_capa.loc[(slice(None), ["gas_extraction", "oil_extraction",
                                "coal/lignite_extraction", "uranium_extraction"]), "units"] = "GW_lhv"
     return df_capa
 
@@ -468,7 +468,7 @@ def extract_nodal_costs():
 
 
 def extract_nodal_supply_energy(n):
-    labels = {y: label[:-1] + (y, ) for y in n.keys()}
+    labels = {y: label[:-1] + (y,) for y in n.keys()}
     columns = pd.MultiIndex.from_tuples(labels.values(), names=["cluster", "ll", "opt", "planning_horizon"])
     df = pd.DataFrame(columns=columns, dtype=float)
     for y, ni in n.items():
@@ -516,7 +516,7 @@ def extract_series(n):
             df = safe_load(f)["plotting"]["tech_colors"]
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
-                    prod_profiles = plot_series(ni, carrier="AC", name="AC", year = str(y),
+                    prod_profiles = plot_series(ni, carrier="AC", name="AC", year=str(y),
                                                 load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
 
 
@@ -646,7 +646,7 @@ def _load_capacities(techs, historical="Historical (installed capacity by 2025)"
     )
 
 
-def _load_supply_energy(load=True, carriers= None, countries=None):
+def _load_supply_energy(load=True, carriers=None, countries=None):
     """
     Load nodal supply energy data and aggregate on carrier and sector, given some conditions.
     :param load: If True, keep only load data (negatives values)
@@ -660,9 +660,10 @@ def _load_supply_energy(load=True, carriers= None, countries=None):
 
     def get_load_supply(x):
         if load:
-            return x.where(x <= 0, np.nan)*-1
+            return x.where(x <= 0, np.nan) * -1
         else:
             return x.where(x > 0, np.nan)
+
     df[years_str] = df[years_str].apply(get_load_supply)
     df = df.dropna(subset=years_str, how="all")
 
@@ -743,9 +744,17 @@ def load_load_sectors_be():
     return _load_supply_energy(load=True, countries=["BE"])
 
 
+def load_supply_sectors():
+    return _load_supply_energy(load=False)
+
+
+def load_supply_sectors_be():
+    return _load_supply_energy(load=False, countries=["BE"])
+
+
 # %% Costs load
 
-def _load_costs(year,countries=None):
+def _load_costs(year, countries=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     if countries:
         df = df.query("country in @countries")
@@ -753,12 +762,11 @@ def _load_costs(year,countries=None):
         Path(path.resolve().parents[2], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
     return (
         df.merge(cost_mapping, left_on=["carrier", "type"], right_index=True, how="left")
-        .groupby(["cost_segment","cost"]).sum(numeric_only=True)
+        .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
         .reset_index()
-        .pivot(columns="cost",values=year,index="cost_segment").fillna(0)
+        .pivot(columns="cost", values=year, index="cost_segment").fillna(0)
         .reset_index()
     )
-    
 
 def load_costs_2030_be():
     return ( 
@@ -916,6 +924,8 @@ def export_data():
         "h2_capacities_be",
         "load_sectors",
         "load_sectors_be",
+        "supply_sectors",
+        "supply_sectors_be",
 
         # Costs
         "costs_total",
