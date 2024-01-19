@@ -260,29 +260,47 @@ def get_p_carrier_nom_t(n, carrier):
 
 
 def extract_res_potential(n):
+    """
+    Extract renewable potentials in GW.
+    :param n: Network
+    :return: Potentials of renewables in GW
+    """
     dfx = []
-    dimensions = ["region", "carrier", "build_year"]
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
-    renamer = {"offwind-dc": "offwind", "offwind-ac": "offwind", "solar rooftop": "solar", "ror": "hydro",
-               "urban central biomass CHP": "biomass CHP"}
 
     for y, ni in n.items():
         df = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
-        df[dimensions] = df["Generator"].str.extract(rx)
+        df[["region", "carrier", "build_year"]] = df["Generator"].str.extract(rx)
         df["carrier"] = df["carrier"].str.rstrip("-").replace(RENAMER)
         df["planning horizon"] = y
         df = df[df["carrier"].isin(["onwind", "offwind", "solar"])]
-        dfx.append(df.groupby(["planning horizon", "carrier", "build_year"]).sum(numeric_only=True) / 1e3)  # GW
+        dfx.append(
+            df.groupby(["planning horizon", "carrier", "build_year", "region"]).sum(numeric_only=True) / 1e3
+        )  # GW
 
     dfx = pd.concat(dfx)
     df_potential = pd.concat([
-        dfx.loc[dfx["p_nom_opt"].index.get_level_values("build_year") != dfx["p_nom_opt"].index.get_level_values(
-            "planning horizon").astype(str), "p_nom_opt"].groupby(["planning horizon", "carrier"]).sum(),
-        dfx.loc[dfx["p_nom_max"].index.get_level_values("build_year") == dfx["p_nom_max"].index.get_level_values(
-            "planning horizon").astype(str), "p_nom_max"].groupby(["planning horizon", "carrier"]).sum()
+        (
+            dfx.loc[
+                dfx["p_nom_opt"].index.get_level_values("build_year") <
+                dfx["p_nom_opt"].index.get_level_values("planning horizon").astype(str)
+                , "p_nom_opt"]
+            .groupby(["planning horizon", "carrier", "region"]).sum()
+        ),
+        (
+            dfx.loc[
+                dfx["p_nom_max"].index.get_level_values("build_year") ==
+                dfx["p_nom_max"].index.get_level_values("planning horizon").astype(str)
+                , "p_nom_max"]
+            .groupby(["planning horizon", "carrier", "region"]).sum()
+        )
     ], axis=1)
-    df_potential["potential"] = df_potential["p_nom_max"] + df_potential["p_nom_opt"]
-    df_potential = df_potential.reset_index().pivot(index="carrier", columns="planning horizon", values="potential")
+
+    df_potential["potential"] = df_potential["p_nom_max"] + df_potential["p_nom_opt"].fillna(0)
+    df_potential = (
+        df_potential.reset_index()
+        .pivot(index=["carrier", "region"], columns="planning horizon", values="potential")
+    )
     df_potential["units"] = "GW_e"
     return df_potential
 
@@ -480,7 +498,8 @@ def extract_nodal_supply_energy(n):
         level="node",
         verify_integrity=False
     )
-    df = df * 1e-6 # TWh
+    df = df * 1e-6  # TWh
+    df["units"] = "TWh"
 
     sector_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2], header=0).dropna()
@@ -595,9 +614,9 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
     nodal_supply_energy.to_csv(Path(csvs, 'supply_energy_sectors.csv'))
+    n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
 
     # Non country specific
-    n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
     ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
     H2_grid.to_csv(Path(csvs, "H2_network_capacities.csv"))
     n_gas.to_csv(Path(csvs, "gas_phase_out.csv"))
@@ -867,6 +886,16 @@ def load_res_potentials():
     return (
         pd.read_csv(Path(csvs, "res_potentials.csv"), header=0)
         .drop(columns=years_str[:-1])
+        .groupby(by="carrier").agg({"2050": "sum", "units": "first"}).reset_index()
+        .reindex(columns=excel_columns["last_units"])
+    )
+
+
+def load_res_potentials_be():
+    return (
+        pd.read_csv(Path(csvs, "res_potentials.csv"), header=0)
+        .query("region == 'BE'")
+        .drop(columns=years_str[:-1])
         .reindex(columns=excel_columns["last_units"])
     )
 
@@ -945,6 +974,7 @@ def export_data():
         "h2_network_capacities",
         "h2_network_capacities_countries",
         "res_potentials",
+        "res_potentials_be",
         # "h2_production",
         "industrial_demand",
         # "production_profile",
