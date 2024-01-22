@@ -982,7 +982,14 @@ def export_data():
 
     with pd.ExcelWriter(Path(path, "graph_extraction_raw.xlsx")) as xl:
         for output in outputs:
-            globals()["load_" + output]().to_excel(xl, sheet_name=output, index=False)
+            o = globals()["load_" + output]()
+            if isinstance(o, pd.DataFrame):
+                o.to_excel(xl, sheet_name=output, index=False)
+            elif isinstance(o, dict):
+                for k, v in o.items():
+                    v.to_excel(xl, sheet_name=output + "_" + k, index=False)
+            else:
+                logging.warning(f"Given output for {output} is not mapped out to output file.")
     return
 
 
