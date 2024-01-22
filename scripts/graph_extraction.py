@@ -778,7 +778,7 @@ def _load_costs(year, countries=None):
     if countries:
         df = df.query("country in @countries")
     cost_mapping = pd.read_csv(
-        Path(path.resolve().parents[2], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
+        Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
     return (
         df.merge(cost_mapping, left_on=["carrier", "type"], right_index=True, how="left")
         .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
@@ -989,7 +989,7 @@ def export_data():
 # %% Main
 if __name__ == "__main__":
     # for testing
-    path = Path("analysis", "VEKA_av_bio_fix_nuc")
+    path = Path("analysis", "VEKA_av_bio_fix_nuc_bev")
     years = [2030, 2040, 2050]
     years_str = list(map(str, years))
     dir_export = "graph_data"
@@ -998,7 +998,7 @@ if __name__ == "__main__":
     simpl = 181
     cluster = "37m"
     opts = ""
-    sector_opts = "3H-I-T-H-B-A"
+    sector_opts = "3H-I-T-H-B-A-CCL"
     ll = "v3.0"
     label = (cluster, ll, sector_opts, years)
 
