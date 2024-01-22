@@ -778,7 +778,7 @@ def _load_costs(year, countries=None):
     if countries:
         df = df.query("country in @countries")
     cost_mapping = pd.read_csv(
-        Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
+        Path(path.resolve().parents[2], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
     return (
         df.merge(cost_mapping, left_on=["carrier", "type"], right_index=True, how="left")
         .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
