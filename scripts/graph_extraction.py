@@ -102,7 +102,7 @@ FF_ELEC = ["OCGT", "CCGT", "coal/lignite"]
 FF_HEAT = ["residential / services oil boiler", "residential / services gas boiler"]
 PRODUCTION = FF_ELEC + ["PHS", "hydro", "nuclear", "urban central biomass CHP", "solid biomass"] + RES
 H2 = ["H2 Electrolysis", "H2 Fuel Cell"]
-BALANCE = H2 + ["battery charger", "home battery charger", "BEV charger" "Haber-Bosch", "Sabatier",
+BALANCE = H2 + ["battery charger", "home battery charger", "BEV charger", "Haber-Bosch", "Sabatier",
                 "ammonia cracker", "helmeth", "SMR", "SMR CC", "Fischer-Tropsch"]
 
 
