@@ -105,6 +105,9 @@ H2 = ["H2 Electrolysis", "H2 Fuel Cell"]
 BALANCE = H2 + ["battery charger", "home battery charger", "BEV charger", "Haber-Bosch", "Sabatier",
                 "ammonia cracker", "helmeth", "SMR", "SMR CC", "Fischer-Tropsch"]
 
+CLIP_VALUE_TWH = 1e-1 # TWh
+CLIP_VALUE_GW = 1e-3 # GW
+
 
 # %% Utils
 def assign_countries(n):
@@ -692,11 +695,18 @@ def _load_capacities(techs, historical="Historical (installed capacity by 2025)"
     if countries:
         df = df.query("node in @countries")
 
-    return (
-        df.groupby(by="carrier").sum().reset_index()
+    idx = ["carrier"]
+    df = (
+        df.groupby(by=idx).sum().reset_index()
         .reindex(columns=excel_columns["all_years"])
         .rename(columns={"hist": historical})
     )
+
+    df = df.set_index(idx)
+    df = df[df.sum(axis=1) >= CLIP_VALUE_GW * (len(years) + 1)]
+    df = df.reset_index()
+
+    return df
 
 
 def _load_supply_energy(load=True, carriers=None, countries=None):
@@ -725,10 +735,15 @@ def _load_supply_energy(load=True, carriers=None, countries=None):
     if countries:
         df = df.query("node in @countries")
 
+    idx = ["carrier", "sector"]
     df = (
-        df.groupby(by=["carrier", "sector"]).sum().reset_index()
+        df.groupby(by=idx).sum().reset_index()
         .reindex(columns=excel_columns["future_years_sector"])
     )
+
+    df = df.set_index(idx)
+    df = df[df.sum(axis=1) >= CLIP_VALUE_TWH * len(years)]
+    df = df.reset_index()
 
     return df
 
