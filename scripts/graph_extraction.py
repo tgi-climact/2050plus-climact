@@ -548,8 +548,6 @@ def extract_nodal_supply_energy(n):
     df["node"] = df["node"].map(renamer)
     df = df.set_index(idx)
 
-    df = df.groupby(by=idx).sum()
-
     df = df * 1e-6  # TWh
     df["units"] = "TWh"
 
@@ -789,13 +787,17 @@ def _load_supply_energy_dico(load, countries):
         if ca == "electricity":
             df_ac = _load_supply_energy(load=load, countries=countries, carriers="AC")
             df_low = _load_supply_energy(load=load, countries=countries, carriers="low voltage")
-            df_elec = pd.concat([df_ac, df_low])
-            if not(load):
+            df = pd.concat([df_ac, df_low])
+            del df["carrier"]
+            df = df.groupby(by="sector").sum().reset_index()
+
+			if not(load):
                 df_imp = _load_imp_exp(export=False, country='BE', carriers='elec', years = years)
                 df_exp = _load_imp_exp(export=True, country='BE', carriers='elec', years = years)
                 df_net_imp = (df_imp-df_exp)[years].sum()
-                df_elec.loc['import'] = ['Elec','Net Imports']+df_net_imp.values.tolist()
-            dico[ca] = df_elec
+                df['import'] = ['Elec','Net Imports']+df_net_imp.values.tolist()
+
+            dico[ca] = df
         else:
             dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
 
