@@ -886,19 +886,26 @@ def load_supply_sectors_be():
 
 # %% Costs load
 
-def _load_costs(year, countries=None):
+def _load_costs(year=None, countries=None, cost_segment=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     if countries:
         df = df.query("country in @countries")
     cost_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
-    return (
+    df = (
         df.merge(cost_mapping, left_on=["carrier", "type"], right_index=True, how="left")
         .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
         .reset_index()
-        .pivot(columns="cost", values=year, index="cost_segment").fillna(0)
-        .reset_index()
-    )
+        )
+    if cost_segment:
+        df = df.query('cost_segment in @cost_segment')
+    else:
+        df = ( 
+            df.pivot(columns="cost", values=year, index="cost_segment")
+            .fillna(0)
+            .reset_index()
+            )
+    return df
 
 
 def load_costs_2030_be():
@@ -916,6 +923,23 @@ def load_costs_2040_be():
 def load_costs_2050_be():
     return (
         _load_costs("2050", countries=["BE"])
+    )
+
+def load_costs_prod_be():
+    return (
+        _load_costs(cost_segment='Production', countries=["BE"])
+    )
+
+
+def load_costs_tran_be():
+    return (
+        _load_costs(cost_segment='Transport', countries=["BE"])
+    )
+
+
+def load_costs_bal_be():
+    return (
+        _load_costs(cost_segment='Balancing', countries=["BE"])
     )
 
 
@@ -1117,6 +1141,9 @@ def export_data():
         "costs_2030_be",
         "costs_2040_be",
         "costs_2050_be",
+        "costs_prod_be",
+        "costs_tran_be",
+        "costs_bal_be",
         "costs_res",
         # "costs_flex",
         # "costs_segments",
