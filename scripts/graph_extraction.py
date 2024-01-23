@@ -105,8 +105,8 @@ H2 = ["H2 Electrolysis", "H2 Fuel Cell"]
 BALANCE = H2 + ["battery charger", "home battery charger", "BEV charger", "Haber-Bosch", "Sabatier",
                 "ammonia cracker", "helmeth", "SMR", "SMR CC", "Fischer-Tropsch"]
 
-CLIP_VALUE_TWH = 1e-1 # TWh
-CLIP_VALUE_GW = 1e-3 # GW
+CLIP_VALUE_TWH = 1e-1  # TWh
+CLIP_VALUE_GW = 1e-3  # GW
 
 
 # %% Utils
@@ -314,54 +314,55 @@ def extract_transmission(n, carriers=["AC", "DC"],
                                 "H2 pipeline": "GW_lhv,h2", "H2 pipeline retrofitted": "GW_lhv,h2"}):
     capacities = []
     capacities_countries = []
-    imports, exports =  [], []
+    imports, exports = [], []
     # Add projected values
     for y, ni in n.items():
 
         transmission = []
-        if "hist" != y :
+        if "hist" != y:
             transmission_t = []
         for ca in carriers:
             if ca == "AC":
                 transmission.append(ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"}))
-                if "hist" != y :
+                if "hist" != y:
                     transmission_t.append(ni.lines_t.p0)
             else:
                 transmission.append(ni.links.query('carrier == @ca'))
-                if "hist" != y :
+                if "hist" != y:
                     transmission_t.append(ni.links_t.p0[ni.links.query('carrier == @ca').index])
 
         transmission = pd.concat(transmission)
-        if "hist" != y : 
-            transmission_t = pd.concat(transmission_t,axis=1)
-
+        if "hist" != y:
+            transmission_t = pd.concat(transmission_t, axis=1)
 
         buses_links = [c for c in transmission.columns if "bus" in c]
         country_map = transmission[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
-        table_li_co = pd.DataFrame([],index=country_map.index)
+        table_li_co = pd.DataFrame([], index=country_map.index)
         transmission_co = {}
         mono_co = {}
-        if "hist" != y :
-            mat_imp = pd.DataFrame([],columns=ni.buses.country.unique(),index=ni.buses.country.unique()).rename_axis(index='countries')
-            mat_exp = pd.DataFrame([],columns=ni.buses.country.unique(),index=ni.buses.country.unique()).rename_axis(index='countries')
+        if "hist" != y:
+            mat_imp = pd.DataFrame([], columns=ni.buses.country.unique(), index=ni.buses.country.unique()).rename_axis(
+                index='countries')
+            mat_exp = pd.DataFrame([], columns=ni.buses.country.unique(), index=ni.buses.country.unique()).rename_axis(
+                index='countries')
             mat_imp['year'] = y
             mat_exp['year'] = y
-        
+
         for co in ni.buses.country.unique():
-            if "hist" != y :
-                table_li_co[co] = country_map.apply(lambda x : -1 if x.bus0 == co else 0,axis=1) 
-                table_li_co[co] += country_map.apply(lambda x : 1 if x.bus1 == co else 0,axis=1)
-                
-                other_bus = country_map.apply(lambda x : x.bus1 if x.bus0 == co else "",axis=1)
-                other_bus += country_map.apply(lambda x : x.bus0 if x.bus1 == co else "",axis=1)
-            
-                ie_raw = transmission_t.mul(table_li_co[co])/1e6 #TWh
-                imp = ie_raw.where(ie_raw>0, 0).sum(axis=0)
-                exp = ie_raw.mask(ie_raw>0, 0).sum(axis=0)
-                
+            if "hist" != y:
+                table_li_co[co] = country_map.apply(lambda x: -1 if x.bus0 == co else 0, axis=1)
+                table_li_co[co] += country_map.apply(lambda x: 1 if x.bus1 == co else 0, axis=1)
+
+                other_bus = country_map.apply(lambda x: x.bus1 if x.bus0 == co else "", axis=1)
+                other_bus += country_map.apply(lambda x: x.bus0 if x.bus1 == co else "", axis=1)
+
+                ie_raw = transmission_t.mul(table_li_co[co]) / 1e6  # TWh
+                imp = ie_raw.where(ie_raw > 0, 0).sum(axis=0)
+                exp = ie_raw.mask(ie_raw > 0, 0).sum(axis=0)
+
                 mat_imp.loc[other_bus.loc[imp[imp>CLIP_VALUE_TWH].index],co] = imp[imp>CLIP_VALUE_TWH].values    
                 mat_exp.loc[other_bus.loc[exp[exp<-CLIP_VALUE_TWH].index],co] = exp[exp<-CLIP_VALUE_TWH].values    
-                
+
             transmission_co[co] = (transmission
                                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
                                    .groupby("carrier")
@@ -383,16 +384,15 @@ def extract_transmission(n, carriers=["AC", "DC"],
 
         transmission_total = pd.DataFrame(transmission.groupby("carrier").p_nom_opt.sum()) / 1e3
         capacities.append(transmission_total.rename(columns={'p_nom_opt': y}))
-        
-        if "hist" != y :
-            imports.append(mat_imp.reset_index().set_index(['countries','year']))
-            exports.append(mat_exp.reset_index().set_index(['countries','year']))
-        
+
+        if "hist" != y:
+            imports.append(mat_imp.reset_index().set_index(['countries', 'year']))
+            exports.append(mat_exp.reset_index().set_index(['countries', 'year']))
 
     df = pd.concat(capacities, axis=1)
     df_co = pd.concat(capacities_countries, axis=0)
-    df_imp = pd.concat(imports,axis=0).fillna(0)
-    df_exp = pd.concat(exports,axis=0).fillna(0)
+    df_imp = pd.concat(imports, axis=0).fillna(0)
+    df_exp = pd.concat(exports, axis=0).fillna(0)
 
     df["units"] = df.index.map(units)
     df_co["units"] = df_co.index.get_level_values(level=1).map(units)
@@ -537,6 +537,7 @@ def extract_nodal_supply_energy(n):
     df.columns = df.columns.get_level_values(3)
 
     rx = re.compile(r"([A-Z]{2})[0-9]\s[0-9]")
+
     def renamer(x):
         if rx.match(x):
             return rx.match(x).group(1)
@@ -546,6 +547,8 @@ def extract_nodal_supply_energy(n):
     df = df.reset_index()
     df["node"] = df["node"].map(renamer)
     df = df.set_index(idx)
+
+    df = df.groupby(by=idx).sum()
 
     df = df * 1e-6  # TWh
     df["units"] = "TWh"
@@ -632,17 +635,15 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
     n_res_pot = extract_res_potential(n)
     nodal_supply_energy = extract_nodal_supply_energy(n)
-    
+
     el_imp['carriers'] = 'elec'
-    el_imp = el_imp.reset_index().set_index(['countries','year','carriers'])
+    el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
     H2_imp['carriers'] = 'h2'
-    H2_imp = H2_imp.reset_index().set_index(['countries','year','carriers'])
+    H2_imp = H2_imp.reset_index().set_index(['countries', 'year', 'carriers'])
     gas_imp['carriers'] = 'gas'
-    gas_imp = gas_imp.reset_index().set_index(['countries','year','carriers'])
-    
-    imports = pd.concat([el_imp,H2_imp,gas_imp])
-    
-    
+    gas_imp = gas_imp.reset_index().set_index(['countries', 'year', 'carriers'])
+
+    imports = pd.concat([el_imp, H2_imp, gas_imp])
 
     plt.close('all')
     ## Figures to extract
@@ -677,7 +678,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
     nodal_supply_energy.to_csv(Path(csvs, 'supply_energy_sectors.csv'))
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
-    imports.to_csv(Path(csvs,'imports_exports.csv'))
+    imports.to_csv(Path(csvs, 'imports_exports.csv'))
 
     # Non country specific
     ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
@@ -774,6 +775,7 @@ def _load_supply_energy(load=True, carriers=None, countries=None):
 
     return df
 
+
 def _load_supply_energy_dico(load, countries):
     """
     Allow to split _load_supply_energy into its carriers for it 
@@ -782,7 +784,7 @@ def _load_supply_energy_dico(load, countries):
     """
     dico = {}
     supply_energy = _load_supply_energy(load=load, countries=countries)
-    
+
     for ca in supply_energy.carrier.replace({"AC": "electricity", "low voltage": "electricity"}).unique():
         if ca == "electricity":
             df_ac = _load_supply_energy(load=load, countries=countries, carriers="AC")
@@ -796,7 +798,7 @@ def _load_supply_energy_dico(load, countries):
             dico[ca] = df_elec
         else:
             dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
-        
+
     return dico
 
 
@@ -857,7 +859,7 @@ def load_h2_capacities_be():
 
 
 def load_load_sectors():
-    return _load_supply_energy_dico(load=True,countries=None)
+    return _load_supply_energy_dico(load=True, countries=None)
 
 
 def load_load_sectors_be():
@@ -865,7 +867,7 @@ def load_load_sectors_be():
 
 
 def load_supply_sectors():
-    return _load_supply_energy_dico(load=False,countries=None)
+    return _load_supply_energy_dico(load=False, countries=None)
 
 
 def load_supply_sectors_be():
@@ -888,21 +890,22 @@ def _load_costs(year, countries=None):
         .reset_index()
     )
 
+
 def load_costs_2030_be():
-    return ( 
-        _load_costs("2030",countries=["BE"])
+    return (
+        _load_costs("2030", countries=["BE"])
     )
 
 
 def load_costs_2040_be():
-    return ( 
-        _load_costs("2040",countries=["BE"])
+    return (
+        _load_costs("2040", countries=["BE"])
     )
 
 
 def load_costs_2050_be():
-    return ( 
-        _load_costs("2050",countries=["BE"])
+    return (
+        _load_costs("2050", countries=["BE"])
     )
 
 
@@ -939,7 +942,7 @@ def load_costs_type():
 
 # %% Non standard loads
 
-def _load_imp_exp(export=True, country=None, carriers=None, years = None):
+def _load_imp_exp(export=True, country=None, carriers=None, years=None):
     """
     Return the imports or export of a country per country for a given carrier.
     Since the network imports/exports are zero-sum, the exports can be obtained 
@@ -948,36 +951,36 @@ def _load_imp_exp(export=True, country=None, carriers=None, years = None):
     """
     imp_exp = []
     for y in years:
-        df_carrier = ( 
-                    pd.read_csv(Path(csvs, "imports_exports.csv"), header=0)
-                    .query('carriers == @carriers')
-                    .query('year == @y')
-                    .drop(columns=['carriers','year'])
-                    .set_index('countries')
-                    )
+        df_carrier = (
+            pd.read_csv(Path(csvs, "imports_exports.csv"), header=0)
+            .query('carriers == @carriers')
+            .query('year == @y')
+            .drop(columns=['carriers', 'year'])
+            .set_index('countries')
+        )
         if export:
             df_carrier = df_carrier.T
-        
-        imp_exp.append(df_carrier[[country]].rename(columns={country : y}))
-    imp_exp = pd.concat(imp_exp,axis=1)
+
+        imp_exp.append(df_carrier[[country]].rename(columns={country: y}))
+    imp_exp = pd.concat(imp_exp, axis=1)
     return (
-            imp_exp.loc[~(imp_exp==0).all(axis=1)].reset_index()
+        imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
     )
-    
+
 
 def load_imports_be():
-    carriers = ['elec'] # ['elec','gas','h2']
+    carriers = ['elec']  # ['elec','gas','h2']
     dico = {}
     for ca in carriers:
-        dico[ca] = _load_imp_exp(export=False, country='BE', carriers=ca, years = years)  
+        dico[ca] = _load_imp_exp(export=False, country='BE', carriers=ca, years=years)
     return dico
 
 
 def load_exports_be():
-    carriers = ['elec'] # ['elec','gas','h2']
+    carriers = ['elec']  # ['elec','gas','h2']
     dico = {}
     for ca in carriers:
-        dico[ca] = _load_imp_exp(export=True, country='BE', carriers=ca, years = years)  
+        dico[ca] = _load_imp_exp(export=True, country='BE', carriers=ca, years=years)
     return dico
 
 
@@ -1141,8 +1144,7 @@ def export_data():
 # %% Main
 if __name__ == "__main__":
     # for testing
-    path = Path().resolve().parents[0]
-    path = Path(path,"analysis", "VEKA_av_bio_fix_nuc_bev")
+    path = Path("analysis", "VEKA_av_bio_fix_nuc_bev")
     years = [2030, 2040, 2050]
     years_str = list(map(str, years))
     dir_export = "graph_data"
@@ -1193,5 +1195,5 @@ if __name__ == "__main__":
         export = True
         countries = ["BE"]
         logger.info(f"Extracting from {path}")
-        #extract_graphs(years, n_path, n_name, countries=eu27_countries)
+        extract_graphs(years, n_path, n_name, countries=eu27_countries)
         export_data()

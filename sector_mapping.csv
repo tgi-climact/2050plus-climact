@@ -142,18 +142,18 @@ gas for industry,loads,gas for industry,
 H2,links,ammonia cracker1,Ammonia Cracker
 H2,links,Fischer-Tropsch0,Efuels production
 H2,links,H2 Electrolysis1,Electrolysis
-H2,links,H2 Fuel Cell0,Hydrogen for sectors
+H2,links,H2 Fuel Cell0,Power
 H2,links,H2 pipeline retrofitted0,
 H2,links,H2 pipeline retrofitted1,
 H2,links,H2 pipeline0,
 H2,links,H2 pipeline1,
-H2,links,Haber-Bosch2,Hydrogen for sectors
-H2,links,methanolisation0,Hydrogen for sectors
-H2,links,Sabatier0,Hydrogen for sectors
+H2,links,Haber-Bosch2,Ammonia
+H2,links,methanolisation0,Methanol
+H2,links,Sabatier0,Gas
 H2,links,SMR CC1,SMR
 H2,links,SMR1,SMR
-H2,loads,H2 for industry,Hydrogen for sectors
-H2,loads,land transport fuel cell,Hydrogen for sectors
+H2,loads,H2 for industry,Industry
+H2,loads,land transport fuel cell,Land transport
 H2,stores,H2 Store,
 home battery,links,home battery charger1,
 home battery,links,home battery discharger0,
