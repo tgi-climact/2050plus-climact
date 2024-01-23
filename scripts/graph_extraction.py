@@ -548,6 +548,8 @@ def extract_nodal_supply_energy(n):
     df["node"] = df["node"].map(renamer)
     df = df.set_index(idx)
 
+    df = df.groupby(by=idx).sum()
+
     df = df * 1e-6  # TWh
     df["units"] = "TWh"
 
