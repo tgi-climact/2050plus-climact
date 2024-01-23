@@ -167,7 +167,7 @@ lignite,links,lignite0,
 lignite,stores,lignite,
 low voltage,generators,solar rooftop,Solar
 low voltage,links,BEV charger0,Transport
-low voltage,links,electricity distribution grid1,Distribution Grid
+low voltage,links,electricity distribution grid1,
 low voltage,links,home battery charger0,Battery
 low voltage,links,home battery discharger1,Battery
 low voltage,links,residential rural ground heat pump0,Heat
