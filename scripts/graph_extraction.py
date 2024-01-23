@@ -311,24 +311,42 @@ def extract_transmission(n, carriers=["AC", "DC"],
                                 "H2 pipeline": "GW_lhv,h2", "H2 pipeline retrofitted": "GW_lhv,h2"}):
     capacities = []
     capacities_countries = []
-
+    imports_exports = []
     # Add projected values
     for y, ni in n.items():
 
         transmission = []
+        if "hist" != y :
+            transmission_t = []
         for ca in carriers:
             if ca == "AC":
                 transmission.append(ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"}))
+                if "hist" != y :
+                    transmission_t.append(ni.lines_t.p0)
             else:
                 transmission.append(ni.links.query('carrier == @ca'))
+                if "hist" != y :
+                    transmission_t.append(ni.links_t.p0[ni.links.query('carrier == @ca').index])
 
         transmission = pd.concat(transmission)
+        if "hist" != y : 
+            transmission_t = pd.concat(transmission_t)
+
 
         buses_links = [c for c in transmission.columns if "bus" in c]
         country_map = transmission[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
+        table_li_co = pd.DataFrame([],index=country_map.index)
+        
         transmission_co = {}
         mono_co = {}
+        if "hist" != y :
+            imp_exp = pd.DataFrame([],columns=ni.buses.country.unique(),index=[y])
         for co in ni.buses.country.unique():
+            if "hist" != y :
+                table_li_co[co] = country_map.apply(lambda x : -1 if x.bus0 == co else 0,axis=1) 
+                table_li_co[co] += country_map.apply(lambda x : 1 if x.bus1 == co else 0,axis=1)
+                imp_exp[co] = transmission_t.mul(table_li_co[co]).sum().sum()/1e6 #TWh
+            
             transmission_co[co] = (transmission
                                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
                                    .groupby("carrier")
@@ -350,12 +368,17 @@ def extract_transmission(n, carriers=["AC", "DC"],
 
         transmission_total = pd.DataFrame(transmission.groupby("carrier").p_nom_opt.sum()) / 1e3
         capacities.append(transmission_total.rename(columns={'p_nom_opt': y}))
+        
+        if "hist" != y :
+            imports_exports.append(imp_exp)
+        
 
     df = pd.concat(capacities, axis=1)
     df_co = pd.concat(capacities_countries, axis=0)
+    df_ie = pd.concat(imports_exports,axis=0)
     df["units"] = df.index.map(units)
     df_co["units"] = df_co.index.get_level_values(level=1).map(units)
-    return df, df_co
+    return df, df_co, df_ie
 
 
 def extract_storage_units(n, color_shift, storage_function, storage_horizon, both=False, units={}):
@@ -576,10 +599,11 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_gas = extract_gas_phase_out(n, 2030)
     capa_country = extract_country_capacities(n_ext)
     n_loads = extract_loads(n)
-    ACDC_grid, ACDC_countries = extract_transmission(n_ext)
-    H2_grid, H2_countries = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"], )
+    ACDC_grid, ACDC_countries, ACDC_ie = extract_transmission(n_ext)
+    H2_grid, H2_countries, H2_ie = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
+    gas_grid, gas_countries, gas_ie = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
     n_costs = extract_nodal_costs()
-    # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
+    n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
     n_res_pot = extract_res_potential(n)
     nodal_supply_energy = extract_nodal_supply_energy(n)
 
@@ -611,6 +635,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # extract country specific capacities
     ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
     H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
+    gas_countries.to_csv(Path(csvs, "gas_network_capacities_countries.csv"))
     capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
     nodal_supply_energy.to_csv(Path(csvs, 'supply_energy_sectors.csv'))
@@ -619,6 +644,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     # Non country specific
     ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
     H2_grid.to_csv(Path(csvs, "H2_network_capacities.csv"))
+    gas_grid.to_csv(Path(csvs, "gas_network_capacities.csv"))
     n_gas.to_csv(Path(csvs, "gas_phase_out.csv"))
 
     # extract temporal profiles
