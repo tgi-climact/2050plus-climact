@@ -399,13 +399,16 @@ def extract_transmission(n, carriers=["AC", "DC"],
     return df, df_co, df_imp
 
 
-def extract_storage_units(n, color_shift, storage_function, storage_horizon, both=False, units={}):
+def extract_graphs(n, storage_function, storage_horizon, both=False, units={}, color_shift = None):
     carrier = list(storage_horizon.keys())
-
+    if color_shift:
+        pass
+    else:
+        color_shift = dict(zip(years,['C'+str(i) for i in range(len(years))]))
     fig = plt.figure(figsize=(14, 8))
 
     def plotting(ax, title, data, y, unit):
-        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime('2030-%m-%d-%H'))
+        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime('2030-%m-%d-%H'))        
         ax.plot(data, label=y, color=color_shift.get(y))
         ax.set_title(title)
         ax.spines['top'].set_visible(False)
@@ -589,7 +592,7 @@ def extract_series(n):
                                                 load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
 
 
-def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0", 2035: "C1", 2040: "C2"}):
+def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     n = {}
     df["nodal_capacities"] = pd.DataFrame(columns=years, dtype=float)
 
@@ -647,15 +650,20 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     ## Figures to extract
     # Storage
     mpl.rcParams.update(mpl.rcParamsDefault)
+    if color_shift:
+        pass
+    else:
+        color_shift = dict(zip(years,['C0','C2','C1']))
+    
     storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
     storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
                        "battery": "ST", "home battery": "ST",
                        "ammonia store": "LT"}
-    n_sto = extract_storage_units(n, color_shift, storage_function, storage_horizon)
+    n_sto = extract_graphs(n, storage_function, storage_horizon, color_shift = color_shift)
     # h2
     storage_function = {"H2 Fuel Cell": "get_p_carrier_nom_t", "H2 Electrolysis": "get_p_carrier_nom_t"}
     storage_horizon = {"H2 Fuel Cell": "LT", "H2 Electrolysis": "LT", "H2 Store": "LT"}
-    n_h2 = extract_storage_units(n, color_shift, storage_function, storage_horizon,
+    n_h2 = extract_graphs(n, storage_function, storage_horizon, color_shift = color_shift,
                                  both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                                    "H2 Store": "[TWh_{lhv,h2}]"})
 
