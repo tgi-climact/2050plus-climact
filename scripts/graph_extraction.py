@@ -633,14 +633,14 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_res_pot = extract_res_potential(n)
     nodal_supply_energy = extract_nodal_supply_energy(n)
     
-    el_im['carriers'] = 'elec'
-    el_im = el_im.reset_index().set_index(['countries','year','carriers'])
-    H2_im['carriers'] = 'h2'
-    H2_im = H2_im.reset_index().set_index(['countries','year','carriers'])
-    gas_im['carriers'] = 'gas'
-    gas_im = gas_im.reset_index().set_index(['countries','year','carriers'])
+    el_imp['carriers'] = 'elec'
+    el_imp = el_imp.reset_index().set_index(['countries','year','carriers'])
+    H2_imp['carriers'] = 'h2'
+    H2_imp = H2_imp.reset_index().set_index(['countries','year','carriers'])
+    gas_imp['carriers'] = 'gas'
+    gas_imp = gas_imp.reset_index().set_index(['countries','year','carriers'])
     
-    imports = pd.concat([el_im,H2_im,gas_im])
+    imports = pd.concat([el_imp,H2_imp,gas_imp])
     
     
 
@@ -950,7 +950,7 @@ def _load_imp_exp(export=True, country=None, carriers=None, years = None):
                     .set_index('countries')
                     )
         if export:
-            df_carrier = df_carrier.T*(-1)
+            df_carrier = df_carrier.T
         
         imp_exp.append(df_carrier[[country]].rename(columns={country : y}))
     imp_exp = pd.concat(imp_exp,axis=1)
