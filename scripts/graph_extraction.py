@@ -359,8 +359,8 @@ def extract_transmission(n, carriers=["AC", "DC"],
                 imp = ie_raw.where(ie_raw>0, 0).sum(axis=0)
                 exp = ie_raw.mask(ie_raw>0, 0).sum(axis=0)
                 
-                mat_imp.loc[other_bus.loc[imp[imp>1e-2].index],co] = imp[imp>1e-2].values    
-                mat_exp.loc[other_bus.loc[exp[exp<-1e-2].index],co] = exp[exp<-1e-2].values    
+                mat_imp.loc[other_bus.loc[imp[imp>CLIP_VALUE_TWH].index],co] = imp[imp>CLIP_VALUE_TWH].values    
+                mat_exp.loc[other_bus.loc[exp[exp<-CLIP_VALUE_TWH].index],co] = exp[exp<-CLIP_VALUE_TWH].values    
                 
             transmission_co[co] = (transmission
                                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
@@ -625,9 +625,9 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     n_gas = extract_gas_phase_out(n, 2030)
     capa_country = extract_country_capacities(n_ext)
     n_loads = extract_loads(n)
-    ACDC_grid, ACDC_countries, el_im = extract_transmission(n_ext)
-    H2_grid, H2_countries, H2_im = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
-    gas_grid, gas_countries, gas_im = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
+    ACDC_grid, ACDC_countries, el_imp = extract_transmission(n_ext)
+    H2_grid, H2_countries, H2_imp = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
+    gas_grid, gas_countries, gas_imp = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
     n_costs = extract_nodal_costs()
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
     n_res_pot = extract_res_potential(n)
@@ -787,7 +787,13 @@ def _load_supply_energy_dico(load, countries):
         if ca == "electricity":
             df_ac = _load_supply_energy(load=load, countries=countries, carriers="AC")
             df_low = _load_supply_energy(load=load, countries=countries, carriers="low voltage")
-            dico[ca] = pd.concat([df_ac, df_low])
+            df_elec = pd.concat([df_ac, df_low])
+            if not(load):
+                df_imp = _load_imp_exp(export=False, country='BE', carriers='elec', years = years)
+                df_exp = _load_imp_exp(export=True, country='BE', carriers='elec', years = years)
+                df_net_imp = (df_imp-df_exp)[years].sum()
+                df_elec.loc['import'] = ['Elec','Net Imports']+df_net_imp.values.tolist()
+            dico[ca] = df_elec
         else:
             dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
         
@@ -1135,7 +1141,8 @@ def export_data():
 # %% Main
 if __name__ == "__main__":
     # for testing
-    path = Path("analysis", "VEKA_av_bio_fix_nuc_bev")
+    path = Path().resolve().parents[0]
+    path = Path(path,"analysis", "VEKA_av_bio_fix_nuc_bev")
     years = [2030, 2040, 2050]
     years_str = list(map(str, years))
     dir_export = "graph_data"
@@ -1186,5 +1193,5 @@ if __name__ == "__main__":
         export = True
         countries = ["BE"]
         logger.info(f"Extracting from {path}")
-        extract_graphs(years, n_path, n_name, countries=eu27_countries)
+        #extract_graphs(years, n_path, n_name, countries=eu27_countries)
         export_data()
