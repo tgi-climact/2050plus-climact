@@ -491,13 +491,21 @@ def extract_nodal_supply_energy(n):
     df = pd.DataFrame(columns=columns, dtype=float)
     for y, ni in n.items():
         df = calculate_nodal_supply_energy(ni, label=labels[y], nodal_supply_energy=df)
-    df.index.names = ["carrier", "component", "node", "item"]
+    idx = ["carrier", "component", "node", "item"]
+    df.index.names = idx
     df.columns = df.columns.get_level_values(3)
-    df.index = df.index.set_levels(
-        df.index.get_level_values("node").to_series().apply(lambda x: x[:2]),
-        level="node",
-        verify_integrity=False
-    )
+
+    rx = re.compile(r"([A-Z]{2})[0-9]\s[0-9]")
+    def renamer(x):
+        if rx.match(x):
+            return rx.match(x).group(1)
+        else:
+            return x
+
+    df = df.reset_index()
+    df["node"] = df["node"].map(renamer)
+    df = df.set_index(idx)
+
     df = df * 1e-6  # TWh
     df["units"] = "TWh"
 
