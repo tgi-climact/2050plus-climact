@@ -475,9 +475,9 @@ def calculate_nodal_supply_energy(n, label, nodal_supply_energy):
                             .multiply(n.snapshot_weightings.generators, axis=0)
                             .sum()
                         ),
-                        c.df.loc[items][["bus0", "carrier"]]
+                        c.df.loc[items][["location", "carrier"]]
                     ], axis=1)
-                    .groupby(by=["bus0", "carrier"])
+                    .groupby(by=["location", "carrier"])
                     .sum()[0]
                 )
 
