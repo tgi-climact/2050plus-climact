@@ -698,6 +698,20 @@ def _load_supply_energy(load=True, carriers=None, countries=None):
 
     return df
 
+def _load_supply_energy_dico(load, countries):
+    """
+    Allow to split _load_supply_energy into its carriers for it 
+    to be written tab by tab
+
+    """
+    dico = {}
+    supply_energy = _load_supply_energy(load=load, countries=countries)
+    
+    for ca in supply_energy.carrier.unique():
+        dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
+        
+    return dico
+
 
 def load_res_capacities():
     return _load_capacities(RES, historical="Historical (planned by 2022)")
@@ -756,19 +770,19 @@ def load_h2_capacities_be():
 
 
 def load_load_sectors():
-    return _load_supply_energy(load=True)
+    return _load_supply_energy_dico(load=True,countries=None)
 
 
 def load_load_sectors_be():
-    return _load_supply_energy(load=True, countries=["BE"])
+    return _load_supply_energy_dico(load=True, countries=["BE"])
 
 
 def load_supply_sectors():
-    return _load_supply_energy(load=False)
+    return _load_supply_energy_dico(load=False,countries=None)
 
 
 def load_supply_sectors_be():
-    return _load_supply_energy(load=False, countries=["BE"])
+    return _load_supply_energy_dico(load=False, countries=["BE"])
 
 
 # %% Costs load
