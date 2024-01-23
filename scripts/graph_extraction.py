@@ -798,13 +798,14 @@ def _load_supply_energy_dico(load, countries):
             df = pd.concat([df_ac, df_low])
             del df["carrier"]
             df = df.groupby(by="sector").sum().reset_index()
-
-			if not(load):
+            
+            if not(load):
                 df_imp = _load_imp_exp(export=False, country='BE', carriers='elec', years = years)
                 df_exp = _load_imp_exp(export=True, country='BE', carriers='elec', years = years)
                 df_net_imp = (df_imp-df_exp)[years].sum()
-                df['import'] = ['Elec','Net Imports']+df_net_imp.values.tolist()
-
+                df = pd.concat([df,pd.DataFrame(['Net Imports']+df_net_imp.values.tolist(),index=df.columns).T])
+            df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(),index=df.columns).T,df])
+            df.iloc[0,0] = 'Total'
             dico[ca] = df
         else:
             dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
