@@ -741,8 +741,13 @@ def _load_supply_energy_dico(load, countries):
     dico = {}
     supply_energy = _load_supply_energy(load=load, countries=countries)
     
-    for ca in supply_energy.carrier.unique():
-        dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
+    for ca in supply_energy.carrier.replace({"AC": "electricity", "low voltage": "electricity"}).unique():
+        if ca == "electricity":
+            df_ac = _load_supply_energy(load=load, countries=countries, carriers="AC")
+            df_low = _load_supply_energy(load=load, countries=countries, carriers="low voltage")
+            dico[ca] = pd.concat([df_ac, df_low])
+        else:
+            dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
         
     return dico
 
