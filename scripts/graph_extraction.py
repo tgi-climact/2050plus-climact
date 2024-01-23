@@ -1233,5 +1233,5 @@ if __name__ == "__main__":
         export = True
         countries = ["BE"]
         logger.info(f"Extracting from {path}")
-        extract_graphs(years, n_path, n_name, countries=eu27_countries)
+        extract_data(years, n_path, n_name, countries=eu27_countries)
         export_data()
