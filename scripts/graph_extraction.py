@@ -611,7 +611,7 @@ def extract_graphs(years, n_path, n_name, countries=None, color_shift={2030: "C0
     H2_grid, H2_countries, H2_ie = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
     gas_grid, gas_countries, gas_ie = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
     n_costs = extract_nodal_costs()
-    n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
+    # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
     n_res_pot = extract_res_potential(n)
     nodal_supply_energy = extract_nodal_supply_energy(n)
 
