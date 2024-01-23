@@ -325,11 +325,11 @@ def extract_transmission(n, carriers=["AC", "DC"],
             if ca == "AC":
                 transmission.append(ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"}))
                 if "hist" != y:
-                    transmission_t.append(ni.lines_t.p0)
+                    transmission_t.append(ni.lines_t.p0*8760 / len(ni.snapshots))
             else:
                 transmission.append(ni.links.query('carrier == @ca'))
                 if "hist" != y:
-                    transmission_t.append(ni.links_t.p0[ni.links.query('carrier == @ca').index])
+                    transmission_t.append(ni.links_t.p0[ni.links.query('carrier == @ca').index]*8760 / len(ni.snapshots))
 
         transmission = pd.concat(transmission)
         if "hist" != y:
