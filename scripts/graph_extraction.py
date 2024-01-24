@@ -904,6 +904,30 @@ def load_supply_sectors():
 def load_supply_sectors_be():
     return _load_supply_energy_dico(load=False, countries=["BE"])
 
+def load_supply_heat_be():
+    dico = _load_supply_energy_dico(load=False,countries=["BE"])
+    data = pd.DataFrame()
+    
+    heat_renamer = {"residential rural heat" : "decentral heat",
+            "services rural heat" : "decentral heat",
+            "residential urban decentral heat" : "decentral heat",
+            "services urban decentral heat" : "decentral heat",
+            "urban central heat" : "central heat"}
+    
+    for k,v in dico.items():
+        to_add = v.copy()
+        to_add['carrier'] = heat_renamer.get(k)
+        data = pd.concat([data,to_add],ignore_index=True)
+    
+    for heat in ["decentral heat","central heat"]:
+        df[heat]= ( 
+            data.loc[data.carrier.isin([heat])]
+                .drop(columns="carrier")
+                .groupby('sector').sum()
+                .reset_index()
+            ) 
+    return df
+
 
 # %% Costs load
 
@@ -1156,6 +1180,7 @@ def export_data():
         "load_sectors_be",
         "supply_sectors",
         "supply_sectors_be",
+        "supply_heat_be",
 
         # Costs
         "costs_total",
