@@ -796,16 +796,21 @@ def _load_supply_energy(load=True, carriers=None, countries=None):
     return df
 
 
-def _load_supply_energy_dico(load, countries):
+def _load_supply_energy_dico(load=True, countries=None):
     """
     Allow to split _load_supply_energy into its carriers for it 
     to be written tab by tab
 
     """
     dico = {}
-    supply_energy = _load_supply_energy(load=load, countries=countries)
+    supply_energy_carrier = ( _load_supply_energy(load=load, countries=countries)
+                     .carrier
+                     .replace({"AC": "electricity", "low voltage": "electricity"})
+                     .unique()
+                     )
 
-    for ca in supply_energy.carrier.replace({"AC": "electricity", "low voltage": "electricity"}).unique():
+    for ca in supply_energy_carrier:
+        # Todo : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ? 
         if ca == "electricity":
             df_ac = _load_supply_energy(load=load, countries=countries, carriers="AC")
             df_low = _load_supply_energy(load=load, countries=countries, carriers="low voltage")
@@ -820,6 +825,7 @@ def _load_supply_energy_dico(load, countries):
                 df = pd.concat([df,pd.DataFrame(['Net Imports']+df_net_imp.values.tolist(),index=df.columns).T])
             df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(),index=df.columns).T,df])
             df.iloc[0,0] = 'Total'
+            df.drop(df.query('sector == "V2G"').index,inplace=True)
             dico[ca] = df
         else:
             dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
