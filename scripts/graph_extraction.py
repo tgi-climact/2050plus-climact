@@ -23,6 +23,7 @@ from make_summary import assign_locations
 from make_summary import calculate_nodal_capacities
 from make_summary import calculate_nodal_supply_energy
 from plot_network import plot_series
+from plot_network import plot_capacity
 
 logger = logging.getLogger(__name__)
 
@@ -584,12 +585,23 @@ def extract_loads(n):
 
 def extract_series(n):
     with plt.style.context(["ggplot"]):
-        with open(Path(path, 'results/configs/config.yaml'), 'r') as f:
+        with open(Path(path, 'results/configs/config.snakemake.yaml'), 'r') as f:
             df = safe_load(f)["plotting"]["tech_colors"]
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
                     prod_profiles = plot_series(ni, carrier="AC", name="AC", year=str(y),
                                                 load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
+ 
+    
+def extract_plot_capacities(n):
+    with plt.style.context(["ggplot"]):
+        with open(Path(path, 'results/configs/config.snakemake.yaml'), 'r') as f:
+            df = safe_load(f)["plotting"]
+            for y, ni in n.items():
+                with pd.option_context('mode.chained_assignment', None):
+                    prod_profiles = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
+                                                  bus_size_factor=1e5, path=Path(csvs, f"capacities_{y}.png"),
+                                                  run_from_rule=False,transmission=True)
 
 
 def extract_data(years, n_path, n_name, countries=None, color_shift=None):
@@ -624,6 +636,8 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     change_p_nom_opt_carrier(n_bf)
     n_ext = n.copy()
     n_ext['hist'] = n_bf.copy()
+
+    extract_plot_capacities(n)
 
     # DataFrames to extract
     n_gas = extract_gas_phase_out(n, 2030)

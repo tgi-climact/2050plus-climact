@@ -49,6 +49,8 @@ def rename_techs_tyndp(tech):
         return "offshore wind"
     elif "CC" in tech or "sequestration" in tech:
         return "CCS"
+    elif "nuclear" in tech:
+        return "nuclear"
     else:
         return tech
 
@@ -256,11 +258,21 @@ def plot_capacity(
     bus_size_factor=1.7e10,
     transmission=False,
     with_legend=True,
+    colors=None,
+    _map_opts=None,
+    path=None,
+    run_from_rule=True
 ):
     """
     This function mainly do the same as plot_map do but for another metric (here capacities).
     """
-    tech_colors = snakemake.config["plotting"]["tech_colors"]
+    if colors:
+        tech_colors = colors
+    else:
+        tech_colors = snakemake.config["plotting"]["tech_colors"]
+        
+    if _map_opts:
+        map_opts = _map_opts
 
     n = network.copy()
     assign_location(n)
@@ -277,7 +289,7 @@ def plot_capacity(
 
         balance_exclude = ["H2 Electrolysis", "H2 Fuel Cell", "battery charger", "battery discharger",
                            "home battery charger", "home battery discharger", "Haber-Bosch", "Sabatier",
-                           "ammonia cracker", "helmeth", "SMR", "SMR CC"]
+                           "ammonia cracker", "helmeth", "SMR", "SMR CC", "V2G", "solid biomass", "solid biomass transport"]
         carriers_links = ["coal", "lignite", "oil"]  # same carrier name than link
         carriers = carriers_links + ["gas", "uranium", "biomass"]  # different carrier name than link
         transmissions = ["DC", "gas pipeline", "gas pipeline new", "CO2 pipeline", "H2 pipeline",
@@ -346,18 +358,19 @@ def plot_capacity(
     ac_color = "rosybrown"
     dc_color = "darkseagreen"
 
-    if snakemake.wildcards["ll"] == "v1.0":
-        # should be zero
-        line_widths = n.lines.s_nom_opt - n.lines.s_nom
-        link_widths = n.links.p_nom_opt - n.links.p_nom
-        title = "added grid"
-
-        if transmission:
-            line_widths = n.lines.s_nom_opt
-            link_widths = n.links.p_nom_opt
-            linewidth_factor = 2e3
-            line_lower_threshold = 0.0
-            title = "current grid"
+    if run_from_rule:
+        if snakemake.wildcards["ll"] == "v1.0":
+            # should be zero
+            line_widths = n.lines.s_nom_opt - n.lines.s_nom
+            link_widths = n.links.p_nom_opt - n.links.p_nom
+            title = "added grid"
+    
+            if transmission:
+                line_widths = n.lines.s_nom_opt
+                link_widths = n.links.p_nom_opt
+                linewidth_factor = 2e3
+                line_lower_threshold = 0.0
+                title = "current grid"
     else:
         line_widths = n.lines.s_nom_opt - n.lines.s_nom_min
         link_widths = n.links.p_nom_opt - n.links.p_nom_min
@@ -444,7 +457,10 @@ def plot_capacity(
             legend_kw=legend_kw,
         )
 
-    fig.savefig(snakemake.output.capacities, transparent=True, bbox_inches="tight")
+    if path:
+        fig.savefig(path, transparent=True, bbox_inches="tight")
+    else:
+        fig.savefig(snakemake.output.capacities, transparent=True, bbox_inches="tight")
 
 
 def group_pipes(df, drop_direction=False):
