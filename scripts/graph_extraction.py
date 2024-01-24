@@ -325,11 +325,12 @@ def extract_transmission(n, carriers=["AC", "DC"],
             if ca == "AC":
                 transmission.append(ni.lines.rename(columns={"s_nom_opt": "p_nom_opt"}))
                 if "hist" != y:
-                    transmission_t.append(ni.lines_t.p0*8760 / len(ni.snapshots))
+                    transmission_t.append(ni.lines_t.p0 * 8760 / len(ni.snapshots))
             else:
                 transmission.append(ni.links.query('carrier == @ca'))
                 if "hist" != y:
-                    transmission_t.append(ni.links_t.p0[ni.links.query('carrier == @ca').index]*8760 / len(ni.snapshots))
+                    transmission_t.append(
+                        ni.links_t.p0[ni.links.query('carrier == @ca').index] * 8760 / len(ni.snapshots))
 
         transmission = pd.concat(transmission)
         if "hist" != y:
@@ -360,8 +361,8 @@ def extract_transmission(n, carriers=["AC", "DC"],
                 imp = ie_raw.where(ie_raw > 0, 0).sum(axis=0)
                 exp = ie_raw.mask(ie_raw > 0, 0).sum(axis=0)
 
-                mat_imp.loc[other_bus.loc[imp[imp>CLIP_VALUE_TWH].index],co] = imp[imp>CLIP_VALUE_TWH].values    
-                mat_exp.loc[other_bus.loc[exp[exp<-CLIP_VALUE_TWH].index],co] = exp[exp<-CLIP_VALUE_TWH].values    
+                mat_imp.loc[other_bus.loc[imp[imp > CLIP_VALUE_TWH].index], co] = imp[imp > CLIP_VALUE_TWH].values
+                mat_exp.loc[other_bus.loc[exp[exp < -CLIP_VALUE_TWH].index], co] = exp[exp < -CLIP_VALUE_TWH].values
 
             transmission_co[co] = (transmission
                                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
@@ -399,16 +400,16 @@ def extract_transmission(n, carriers=["AC", "DC"],
     return df, df_co, df_imp
 
 
-def extract_graphs(n, storage_function, storage_horizon, both=False, units={}, color_shift = None):
+def extract_graphs(n, storage_function, storage_horizon, both=False, units={}, color_shift=None):
     carrier = list(storage_horizon.keys())
     if color_shift:
         pass
     else:
-        color_shift = dict(zip(years,['C'+str(i) for i in range(len(years))]))
+        color_shift = dict(zip(years, ['C' + str(i) for i in range(len(years))]))
     fig = plt.figure(figsize=(14, 8))
 
     def plotting(ax, title, data, y, unit):
-        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime('2030-%m-%d-%H'))        
+        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime('2030-%m-%d-%H'))
         ax.plot(data, label=y, color=color_shift.get(y))
         ax.set_title(title)
         ax.spines['top'].set_visible(False)
@@ -666,19 +667,19 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     if color_shift:
         pass
     else:
-        color_shift = dict(zip(years,['C0','C2','C1']))
-    
+        color_shift = dict(zip(years, ['C0', 'C2', 'C1']))
+
     storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
     storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
                        "battery": "ST", "home battery": "ST",
                        "ammonia store": "LT"}
-    n_sto = extract_graphs(n, storage_function, storage_horizon, color_shift = color_shift)
+    n_sto = extract_graphs(n, storage_function, storage_horizon, color_shift=color_shift)
     # h2
     storage_function = {"H2 Fuel Cell": "get_p_carrier_nom_t", "H2 Electrolysis": "get_p_carrier_nom_t"}
     storage_horizon = {"H2 Fuel Cell": "LT", "H2 Electrolysis": "LT", "H2 Store": "LT"}
-    n_h2 = extract_graphs(n, storage_function, storage_horizon, color_shift = color_shift,
-                                 both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
-                                                   "H2 Store": "[TWh_{lhv,h2}]"})
+    n_h2 = extract_graphs(n, storage_function, storage_horizon, color_shift=color_shift,
+                          both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
+                                            "H2 Store": "[TWh_{lhv,h2}]"})
 
     # Todo : put in a separate function
     # extract
@@ -940,15 +941,15 @@ def _load_costs(year=None, countries=None, cost_segment=None):
         df.merge(cost_mapping, left_on=["carrier", "type"], right_index=True, how="left")
         .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
         .reset_index()
-        )
+    )
     if cost_segment:
         df = df.query('cost_segment in @cost_segment')
     else:
-        df = ( 
+        df = (
             df.pivot(columns="cost", values=year, index="cost_segment")
             .fillna(0)
             .reset_index()
-            )
+        )
     return df
 
 
@@ -968,6 +969,7 @@ def load_costs_2050_be():
     return (
         _load_costs("2050", countries=["BE"])
     )
+
 
 def load_costs_prod_be():
     return (
