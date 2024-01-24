@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pypsa
+import yaml
 from yaml import safe_load
 
 from make_summary import assign_carriers
@@ -23,6 +24,7 @@ from make_summary import assign_locations
 from make_summary import calculate_nodal_capacities
 from make_summary import calculate_nodal_supply_energy
 from plot_network import plot_series
+from prepare_sector_network import get
 from plot_network import plot_capacity
 
 logger = logging.getLogger(__name__)
@@ -530,6 +532,16 @@ def extract_nodal_costs():
     return df
 
 
+rx = re.compile(r"([A-Z]{2})[0-9]\s[0-9]")
+
+
+def renamer_to_country(x):
+    if rx.match(x):
+        return rx.match(x).group(1)
+    else:
+        return x
+
+
 def extract_nodal_supply_energy(n):
     labels = {y: label[:-1] + (y,) for y in n.keys()}
     columns = pd.MultiIndex.from_tuples(labels.values(), names=["cluster", "ll", "opt", "planning_horizon"])
@@ -540,16 +552,8 @@ def extract_nodal_supply_energy(n):
     df.index.names = idx
     df.columns = df.columns.get_level_values(3)
 
-    rx = re.compile(r"([A-Z]{2})[0-9]\s[0-9]")
-
-    def renamer(x):
-        if rx.match(x):
-            return rx.match(x).group(1)
-        else:
-            return x
-
     df = df.reset_index()
-    df["node"] = df["node"].map(renamer)
+    df["node"] = df["node"].map(renamer_to_country)
     df = df.set_index(idx)
 
     df = df * 1e-6  # TWh
@@ -559,6 +563,71 @@ def extract_nodal_supply_energy(n):
         Path(path.resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2], header=0).dropna()
     df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left")
     return df
+
+
+def extract_nodal_oil_load(nhours=8760):
+    resources = Path(path, "resources")
+    nyears = nhours / 8760
+    options = config["sector"]
+
+    def read_load(f):
+        try:
+            df = pd.read_csv(f, index_col=0, header=0)
+            return df
+        except FileNotFoundError:
+            logging.warning(f"Extract nodal oil load miss a file. Mind incoherent results. Missing file : {f.name}.")
+            return pd.DataFrame()
+
+    df_shipping = read_load(Path(resources, "shipping_demand_s181_37m.csv"))
+    df_transport = read_load(Path(resources, "transport_demand_s181_37m.csv"))
+    df_pop_weighted_energy_totals = read_load(Path(resources, "pop_weighted_energy_totals_s181_37m.csv"))
+    df_industry = {}
+    for y in years:
+        df_industry[y] = read_load(Path(resources, f"industrial_energy_demand_elec_s181_37m_{y}.csv"))
+
+    df_oil = []
+    for y in years:
+        # Land transport
+        ice_share = get(options["land_transport_ice_share"], y)
+        ice_efficiency = options["transport_internal_combustion_efficiency"]
+        transport = (ice_share / ice_efficiency * df_transport.sum() / nhours).rename(index="transport")
+
+        # Shipping
+        shipping_oil_share = get(options["shipping_oil_share"], y)
+        domestic_navigation = df_pop_weighted_energy_totals["total domestic navigation"]
+        international_navigation = (df_shipping * nyears)["0"]
+        all_navigation = domestic_navigation + international_navigation
+        p_set = all_navigation * 1e6 / nhours
+        shipping = (shipping_oil_share * p_set).rename(index="shipping")
+
+        # Industry
+        demand_factor = options.get("HVC_demand_factor", 1)
+        industry = (demand_factor * df_industry[y]["naphtha"] * 1e6 * nyears / nhours).rename(index="industry")
+
+        # Aviation
+        demand_factor = options.get("aviation_demand_factor", 1)
+        all_aviation = ["total international aviation", "total domestic aviation"]
+        aviation = (demand_factor * df_pop_weighted_energy_totals[all_aviation].sum(axis=1) * 1e6 / nhours) \
+            .rename(index="aviation")
+
+        # Agriculture
+        oil_share = get(options["agriculture_machinery_oil_share"], y)
+        machinery_nodal_energy = df_pop_weighted_energy_totals["total agriculture machinery"]
+        agriculture = (oil_share * machinery_nodal_energy * 1e6 / nhours).rename(index="agriculture")
+
+        df = pd.concat([transport, shipping, industry, aviation, agriculture], axis=1)
+        df["year"] = y
+        df = df.reset_index().rename(columns={"index": "node"})
+        df["node"] = df["node"].map(renamer_to_country)
+        df = df.groupby(by=["year", "node"]).sum()
+
+        df = df * nhours / 1e6  # from MW to TWh
+
+        df_oil.append(df)
+
+    df_oil = pd.concat(df_oil)
+
+    return df_oil
 
 
 def extract_loads(n):
@@ -650,6 +719,7 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
     n_res_pot = extract_res_potential(n)
     nodal_supply_energy = extract_nodal_supply_energy(n)
+    nodal_oil_load = extract_nodal_oil_load(nhours=n_bf.snapshot_weightings.generators.sum())
 
     el_imp['carriers'] = 'elec'
     el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
@@ -697,6 +767,7 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
     n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
     nodal_supply_energy.to_csv(Path(csvs, 'supply_energy_sectors.csv'))
+    nodal_oil_load.to_csv(Path(csvs, 'nodal_oil_load.csv'))
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
     imports.to_csv(Path(csvs, 'imports_exports.csv'))
 
@@ -796,6 +867,25 @@ def _load_supply_energy(load=True, carriers=None, countries=None):
     return df
 
 
+def _load_nodal_oil(countries):
+    df = (
+        pd.read_csv(Path(csvs, "nodal_oil_load.csv"), header=0)
+    )
+
+    if countries:
+        df = df.query("node in @countries")
+
+    df = (
+        df.groupby(by="year").sum(numeric_only=True)
+        .T
+        .reset_index()
+        .rename(columns={"index": "sector"})
+    )
+    df.columns = [str(c) for c in df.columns]
+    df["carrier"] = "oil"
+    return df
+
+
 def _load_supply_energy_dico(load=True, countries=None):
     """
     Allow to split _load_supply_energy into its carriers for it 
@@ -827,6 +917,13 @@ def _load_supply_energy_dico(load=True, countries=None):
             df.iloc[0,0] = 'Total'
             df.drop(df.query('sector == "V2G"').index,inplace=True)
             dico[ca] = df
+        elif ca == "oil":
+            if load and countries is not None:  # if load and countries exist
+                df_eu_load = _load_nodal_oil(countries)
+                df_c_load = _load_supply_energy(load=load, countries=countries, carriers=ca)
+                dico[ca] = pd.concat([df_c_load, df_eu_load])
+            else:
+                dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
         else:
             dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
 
@@ -1228,12 +1325,16 @@ def export_data():
 # %% Main
 if __name__ == "__main__":
     # for testing
+    config_file = "config.VEKA_Average.runner.yaml"
     path = Path("analysis", "VEKA_av_bio_fix_nuc_bev")
-    years = [2030, 2040, 2050]
-    years_str = list(map(str, years))
     dir_export = "graph_data"
     n_path = Path(path, "results")
 
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f)
+
+    years = config["scenario"]["planning_horizons"]
+    years_str = list(map(str, years))
     simpl = 181
     cluster = "37m"
     opts = ""
