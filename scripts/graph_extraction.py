@@ -310,6 +310,23 @@ def extract_res_potential(n):
     df_potential["units"] = "GW_e"
     return df_potential
 
+def extract_marginal_prices(n, carrier_list =['AC']):
+    df = []
+    for ca in carrier_list:
+        prices = pd.DataFrame([]).rename_axis(index='countries')
+        for y, ni in n.items():
+            if 'hist' != y:
+                price_y = (
+                            ni.buses_t.marginal_price[ni.buses.query("carrier == @ca ").index]
+                           .mean()
+                           .groupby(lambda x: x[:2]).mean()
+                           )
+                prices[y] = price_y
+        prices["carrier"] = ca.replace('AC', 'elec')
+        df.append(prices.reset_index().set_index(['countries','carrier']))
+    df = pd.concat(df,axis=0)
+    return df
+
 def calculate_imp_exp(country_map, transmission_t, y):
     countries = country_map.stack().unique()
     
@@ -737,6 +754,8 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     nodal_supply_energy = extract_nodal_supply_energy(n)
     nodal_oil_load = extract_nodal_oil_load(nhours=n_bf.snapshot_weightings.generators.sum())
 
+    marginal_prices = extract_marginal_prices(n,carrier_list = ['gas','AC'])
+    
     el_imp['carriers'] = 'elec'
     el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
     H2_imp['carriers'] = 'h2'
@@ -786,6 +805,7 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     nodal_oil_load.to_csv(Path(csvs, 'nodal_oil_load.csv'))
     n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
     imports.to_csv(Path(csvs, 'imports_exports.csv'))
+    marginal_prices.to_csv(Path(csvs, 'marginal_prices_countries.csv'))
 
     # Non country specific
     ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
@@ -924,10 +944,10 @@ def _load_supply_energy_dico(load=True, countries=None):
             del df["carrier"]
             df = df.groupby(by="sector").sum().reset_index()
             
-            if not(load):
-                df_imp = _load_imp_exp(export=False, country='BE', carriers='elec', years = years)
-                df_exp = _load_imp_exp(export=True, country='BE', carriers='elec', years = years)
-                df_net_imp = (df_imp-df_exp)[years].sum()
+            if not(load) and countries:
+                df_imp = _load_imp_exp(export=False, countries=countries, carriers='elec', years = years)
+                df_exp = _load_imp_exp(export=True, countries=countries, carriers='elec', years = years)
+                df_net_imp = (df_imp[years]-df_exp[years]).sum()
                 df = pd.concat([df,pd.DataFrame(['Net Imports']+df_net_imp.values.tolist(),index=df.columns).T])
             df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(),index=df.columns).T,df])
             df.iloc[0,0] = 'Total'
@@ -1032,6 +1052,9 @@ def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     if countries:
         df = df.query("country in @countries")
+        prices = pd.read_csv(Path(csvs,'marginal_prices_countries.csv'),header=0)
+        costs_imp_exp = 0
+        
     cost_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
     df = (
@@ -1041,7 +1064,26 @@ def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
     )
         
     if cost_segment:
-        df = df.query('cost_segment in @cost_segment')
+        net_cost = pd.DataFrame([], columns = imp_exp_carriers, index = years)
+        if cost_segment != "Net_Imports":
+            df = df.query('cost_segment in @cost_segment')
+            
+        if cost_segment == "Production" or cost_segment == "Net_Imports":
+            for y in years:
+                for ca in imp_exp_carriers:
+                    imp = _load_imp_exp(export=False,countries=countries, carriers = ca, years = [y]).set_index('countries')*1e6 #MWh
+                    exp = _load_imp_exp(export=True,countries=countries, carriers = ca, years = [y]).set_index('countries')*1e6 #MWh
+                    # print(f"Import of {imp.sum()[0]} and exports of {exp.sum()[0]} for {ca} in {y}")
+                    price_ca = prices.query("carrier == @ca").set_index('countries').loc[:,str(y)] #€/MWh
+                    net_cost.loc[y,ca] =0
+                    if len(imp)>0: 
+                        net_cost.loc[y,ca] += price_ca.loc[imp.index].dot(imp).sum()
+                    if len(exp)>0: 
+                        net_cost.loc[y,ca] -= (price_ca.loc[countries].mean()*exp).values.sum()
+            df.loc[df.query("'fuel' in cost").index, years_str] += net_cost.sum(axis=1).values
+        if cost_segment == "Net_Imports":
+            df = net_cost.reset_index()
+            
     else:
         df = (
             df.pivot(columns="cost", values=year, index="cost_segment")
