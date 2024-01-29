@@ -739,7 +739,6 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     n_ext = n.copy()
     n_ext['hist'] = n_bf.copy()
 
-    extract_plot_capacities(n)
 
     # DataFrames to extract
     n_gas = extract_gas_phase_out(n, 2030)
@@ -794,6 +793,7 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     n_sto.savefig(Path(csvs, "storage_unit.png"))
     n_h2.savefig(Path(csvs, "h2_production.png"))
     extract_series(n)
+    extract_plot_capacities(n)
 
     # extract country specific capacities
     ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
@@ -1442,12 +1442,12 @@ if __name__ == "__main__":
                      "first_hist_units": ["carrier", "hist"] + [years_str[0], "units"]}
 
     export = 'y'
-    if csvs.exists() and csvs.is_dir() and export:
-        export = str(input(
-            "Folder already existing. Make sure to backup any data needed before extracting new ones. Do you want to continue (y/n)?"))
-    if ('y' in export) or ('Y' in export):
-        countries = {"be":['BE']}
-        imp_exp_carriers = ['elec','gas', 'H2']
-        logger.info(f"Extracting from {path}")
-        extract_data(years, n_path, n_name, countries=eu27_countries)
-        export_data()
+
+    # global variables for which to do work
+    # countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countr2ies}
+    countries = {"be":['BE']}
+    imp_exp_carriers = ['elec','gas', 'H2']
+    
+    logger.info(f"Extracting from {path}")
+    extract_data(years, n_path, n_name, countries=eu27_countries)
+    export_data()
