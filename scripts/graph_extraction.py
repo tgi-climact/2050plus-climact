@@ -110,6 +110,7 @@ BALANCE = H2 + ["battery discharger", "home battery discharger", "V2G", "ammonia
 CLIP_VALUE_TWH = 1e-1  # TWh
 CLIP_VALUE_GW = 1e-3  # GW
 
+COST_SEGMENTS = {'prod':'Production', 'bal':'Balancing','tran':'Transport', 'net_imp': "Net_Imports"}
 
 # %% Utils
 def assign_countries(n):
@@ -936,77 +937,60 @@ def _load_supply_energy_dico(load=True, countries=None):
 
     return dico
 
+def load_capacities(tech_list, historical):
+    """
+    Generic function loading for each countries subset the type given in input and the name associated,
+    as well as the historical memo. 
+
+    """
+    dico = {}
+    for co_name, subset in countries.items():
+        dico[f"{co_name}"] = _load_capacities(tech_list, countries=subset, historical=historical)
+    return dico
 
 def load_res_capacities():
-    return _load_capacities(RES, historical="Historical (planned by 2022)")
-
-
-def load_res_capacities_be():
-    return _load_capacities(RES, countries=["BE"], historical="Historical (planned by 2022)")
+    return load_capacities(RES, historical="Historical (planned by 2022)")
 
 
 def load_production():
-    return _load_capacities(PRODUCTION)
-
-
-def load_production_be():
-    return _load_capacities(PRODUCTION, countries=["BE"])
+    return load_capacities(PRODUCTION, historical="Historical (installed capacity by 2025)")
 
 
 def load_balance():
-    return _load_capacities(BALANCE, historical="Historical")
-
-
-def load_balance_be():
-    return _load_capacities(BALANCE, countries=["BE"], historical="Historical")
+    return load_capacities(BALANCE, historical="Historical")
 
 
 def load_long_term_storage():
-    return _load_capacities(LONG_TERM_STORAGE)
-
-
-def load_long_term_storage_be():
-    return _load_capacities(LONG_TERM_STORAGE, countries=["BE"])
+    return load_capacities(LONG_TERM_STORAGE, historical="Historical (installed capacity by 2025)")
 
 
 def load_short_term_storage():
-    return _load_capacities(SHORT_TERM_STORAGE)
-
-
-def load_short_term_storage_be():
-    return _load_capacities(SHORT_TERM_STORAGE, countries=["BE"])
+    return load_capacities(SHORT_TERM_STORAGE, historical="Historical (installed capacity by 2025)")
 
 
 def load_fossil_fuels():
-    return _load_capacities(FF_ELEC + FF_HEAT)
-
-
-def load_fossil_fuels_be():
-    return _load_capacities(FF_ELEC + FF_HEAT, countries=["BE"])
+    return load_capacities(FF_ELEC + FF_HEAT, historical="Historical (installed capacity by 2025)")
 
 
 def load_h2_capacities():
-    return _load_capacities(H2)
-
-
-def load_h2_capacities_be():
-    return _load_capacities(H2, countries=["BE"])
-
+    return load_capacities(H2, historical="Historical (installed capacity by 2025)")
 
 def load_load_sectors():
-    return _load_supply_energy_dico(load=True, countries=None)
-
-
-def load_load_sectors_be():
-    return _load_supply_energy_dico(load=True, countries=["BE"])
+    dico = {}
+    for co_name, subset in countries.items():
+        to_rename =  _load_supply_energy_dico(load=True, countries=subset)
+        for k,v in to_rename.items():
+            dico[f"{co_name}_{k}"] = v
+    return dico
 
 
 def load_supply_sectors():
-    return _load_supply_energy_dico(load=False, countries=None)
-
-
-def load_supply_sectors_be():
-    return _load_supply_energy_dico(load=False, countries=["BE"])
+    dico = {}
+    for co_name, subset in countries.items():
+        to_rename =  _load_supply_energy_dico(load=False, countries=subset)
+        for k,v in to_rename.items():
+            dico[f"{co_name}_{k}"] = v
+    return dico
 
 def load_supply_heat_be():
     dico = _load_supply_energy_dico(load=False,countries=["BE"])
@@ -1035,7 +1019,8 @@ def load_supply_heat_be():
 
 # %% Costs load
 
-def _load_costs(year=None, countries=None, cost_segment=None):
+#generic function for calling costs
+def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     if countries:
         df = df.query("country in @countries")
@@ -1046,6 +1031,7 @@ def _load_costs(year=None, countries=None, cost_segment=None):
         .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
         .reset_index()
     )
+        
     if cost_segment:
         df = df.query('cost_segment in @cost_segment')
     else:
@@ -1056,41 +1042,76 @@ def _load_costs(year=None, countries=None, cost_segment=None):
         )
     return df
 
+def _load_costs(per_segment = False, per_year=False):
+    dico = {}
+    for co_name,subset in countries.items():
+        if per_segment:
+            for seg_name,seg in COST_SEGMENTS.items() :
+                dico[f"{seg_name}_{co_name}"] = _load_costs_year_segment(countries=subset, cost_segment=seg)
+                print(seg_name,seg)
+        else:
+            for y in years_str:
+                dico[f"{y}_{co_name}"] = _load_costs_year_segment(countries=subset, year=y)
+    return dico
 
-def load_costs_2030_be():
-    return (
-        _load_costs("2030", countries=["BE"])
-    )
+def load_costs_years():
+    return  _load_costs(per_year=True)
 
+def load_costs_segments():
+    return  _load_costs(per_segment=True)
 
-def load_costs_2040_be():
-    return (
-        _load_costs("2040", countries=["BE"])
-    )
-
-
-def load_costs_2050_be():
-    return (
-        _load_costs("2050", countries=["BE"])
-    )
-
-
-def load_costs_prod_be():
-    return (
-        _load_costs(cost_segment='Production', countries=["BE"])
-    )
-
-
-def load_costs_tran_be():
-    return (
-        _load_costs(cost_segment='Transport', countries=["BE"])
-    )
+# def load_costs_2030_be():
+#     return (
+#         _load_costs("2030", countries=["BE"])
+#     )
 
 
-def load_costs_bal_be():
-    return (
-        _load_costs(cost_segment='Balancing', countries=["BE"])
-    )
+# def load_costs_2030_eu27():
+#     return (
+#         _load_costs("2030", countries=eu27_countries)
+#     )
+
+
+# def load_costs_2040_be():
+#     return (
+#         _load_costs("2040", countries=["BE"])
+#     )
+
+
+# def load_costs_2040_eu27():
+#     return (
+#         _load_costs("2030", countries=eu27_countries)
+#     )
+
+
+# def load_costs_2050_be():
+#     return (
+#         _load_costs("2050", countries=["BE"])
+#     )
+
+
+# def load_costs_2050_eu27():
+#     return (
+#         _load_costs("2030", countries=eu27_countries)
+#     )
+
+
+# def load_costs_prod_be():
+#     return (
+#         _load_costs(cost_segment='Production', countries=["BE"])
+#     )
+
+
+# def load_costs_tran_be():
+#     return (
+#         _load_costs(cost_segment='Transport', countries=["BE"])
+#     )
+
+
+# def load_costs_bal_be():
+#     return (
+#         _load_costs(cost_segment='Balancing', countries=["BE"])
+#     )
 
 
 def load_costs_total():
@@ -1098,38 +1119,36 @@ def load_costs_total():
         pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     )
 
-
-def load_costs_res():
-    # ToDo Add segments and subsegments
-    return pd.DataFrame()
-
-
-def load_costs_flex():
-    # ToDo Add segments and subsegments
-    return pd.DataFrame()
+# def load_costs_res():
+#     # ToDo Add segments and subsegments
+#     return pd.DataFrame()
 
 
-def load_costs_segments():
-    # ToDo Add segments and subsegments
-    return pd.DataFrame()
+# def load_costs_flex():
+#     # ToDo Add segments and subsegments
+#     return pd.DataFrame()
 
 
-def load_costs_thermal():
-    # ToDo Add segments and subsegments
-    return pd.DataFrame()
+# def load_costs_segments():
+#     # ToDo Add segments and subsegments
+#     return pd.DataFrame()
 
 
-def load_costs_type():
-    # ToDo Add segments and subsegments
-    return pd.DataFrame()
+# def load_costs_thermal():
+#     # ToDo Add segments and subsegments
+#     return pd.DataFrame()
+
+
+# def load_costs_type():
+#     # ToDo Add segments and subsegments
+#     return pd.DataFrame()
 
 
 # %% Non standard loads
-
-def _load_imp_exp(export=True, country=None, carriers=None, years=None):
+def _load_imp_exp(export=True, countries=None, carriers=None, years=None):
     """
-    Return the imports or export of a country per country for a given carrier.
-    Since the network imports/exports are zero-sum, the exports can be obtained 
+    Return the imports or export of a subset of countries per country external to the subset
+    for a given carrier. Since the network imports/exports are zero-sum, the exports can be obtained 
     from the imports matrix
     
     """
@@ -1142,30 +1161,46 @@ def _load_imp_exp(export=True, country=None, carriers=None, years=None):
             .drop(columns=['carriers', 'year'])
             .set_index('countries')
         )
+        
         if export:
-            df_carrier = df_carrier.T
-
-        imp_exp.append(df_carrier[[country]].rename(columns={country: y}))
-    imp_exp = pd.concat(imp_exp, axis=1)
+            df_carrier = (df_carrier.T)
+        if countries and len(df_carrier):   
+            df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
+                                          df_carrier.columns.intersection(countries)]
+        imp_exp.append(df_carrier
+                       .sum(axis=1)
+                       .rename(y)
+                       .to_frame())
+    imp_exp = pd.concat(imp_exp, axis=1).rename_axis(index="countries")
     return (
         imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
     )
 
 
-def load_imports_be():
-    carriers = ['elec']  # ['elec','gas','h2']
+def load_imports_exports():
     dico = {}
-    for ca in carriers:
-        dico[ca] = _load_imp_exp(export=False, country='BE', carriers=ca, years=years)
+   
+    for imp_exp,exp_value in {'imports': False, 'exports' :True}.items():
+        for ca in imp_exp_carriers:
+            for name,subset in countries.items():     
+                dico[f"{imp_exp}_{ca}_{name}"] = _load_imp_exp(export=exp_value,
+                                                               countries=subset, carriers=ca, years=years)
     return dico
 
+# def load_imports_be():
+#     carriers = ['elec']  # ['elec','gas','h2']
+#     dico = {}
+#     for ca in carriers:
+#         dico[ca] = _load_imp_exp(export=False, countries=['BE'], carriers=ca, years=years)
+#     return dico
 
-def load_exports_be():
-    carriers = ['elec']  # ['elec','gas','h2']
-    dico = {}
-    for ca in carriers:
-        dico[ca] = _load_imp_exp(export=True, country='BE', carriers=ca, years=years)
-    return dico
+
+# def load_exports_be():
+#     carriers = ['elec']  # ['elec','gas','h2']
+#     dico = {}
+#     for ca in carriers:
+#         dico[ca] = _load_imp_exp(export=True, countries=['BE'], carriers=ca, years=years)
+#     return dico
 
 
 def load_gas_phase_out():
@@ -1268,38 +1303,19 @@ def export_data():
     outputs = [
         # Standard load
         "res_capacities",
-        "res_capacities_be",
-        "production_be",
         "production",
         "balance",
-        "balance_be",
         "long_term_storage",
         "short_term_storage",
-        "long_term_storage_be",
-        "short_term_storage_be",
         "fossil_fuels",
-        "fossil_fuels_be",
         "h2_capacities",
-        "h2_capacities_be",
         "load_sectors",
-        "load_sectors_be",
         "supply_sectors",
-        "supply_sectors_be",
         "supply_heat_be",
 
         # Costs
-        "costs_total",
-        "costs_2030_be",
-        "costs_2040_be",
-        "costs_2050_be",
-        "costs_prod_be",
-        "costs_tran_be",
-        "costs_bal_be",
-        "costs_res",
-        # "costs_flex",
-        # "costs_segments",
-        # "costs_thermal",
-        # "costs_type",
+        "costs_years",
+        "costs_segments",
 
         # Non standard
         "gas_phase_out",
@@ -1308,11 +1324,8 @@ def export_data():
         "h2_network_capacities",
         "h2_network_capacities_countries",
         "res_potentials",
-        "res_potentials_be",
-        # "h2_production",
         "industrial_demand",
-        "imports_be",
-        "exports_be",
+        "imports_exports",
         # "production_profile",
     ]
 
@@ -1378,14 +1391,13 @@ if __name__ == "__main__":
                      "last_units": ["carrier"] + [years_str[-1], "units"],
                      "first_hist_units": ["carrier", "hist"] + [years_str[0], "units"]}
 
-    countries = None  # ["BE","DE","FR","UK"]
     export = 'y'
     if csvs.exists() and csvs.is_dir() and export:
         export = str(input(
             "Folder already existing. Make sure to backup any data needed before extracting new ones. Do you want to continue (y/n)?"))
     if ('y' in export) or ('Y' in export):
-        export = True
-        countries = ["BE"]
+        countries = {"be":['BE']}
+        imp_exp_carriers = ['elec','gas', 'H2']
         logger.info(f"Extracting from {path}")
         extract_data(years, n_path, n_name, countries=eu27_countries)
         export_data()
