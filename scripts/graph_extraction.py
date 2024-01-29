@@ -310,6 +310,35 @@ def extract_res_potential(n):
     df_potential["units"] = "GW_e"
     return df_potential
 
+def calculate_imp_exp(country_map, transmission_t, y):
+    countries = country_map.stack().unique()
+    
+    table_li_co = pd.DataFrame([], index=country_map.index)
+    other_bus = pd.DataFrame([],index=transmission_t.columns)
+    mat_imp = pd.DataFrame([], columns=countries, index=countries).rename_axis(
+        index='countries')
+    mat_exp = pd.DataFrame([], columns=countries, index=countries).rename_axis(
+        index='countries')
+    mat_imp['year'] = y
+    mat_exp['year'] = y
+    
+    
+    for co in countries:
+        if "hist" != y:
+            table_li_co[co] = country_map.apply(lambda x: -1 if x.bus0 == co else 0, axis=1)
+            table_li_co[co] += country_map.apply(lambda x: 1 if x.bus1 == co else 0, axis=1)
+    
+            other_bus[co] = country_map.apply(lambda x: x.bus1 if x.bus0 == co else "", axis=1)
+            other_bus[co] += country_map.apply(lambda x: x.bus0 if x.bus1 == co else "", axis=1)
+    
+            ie_raw = transmission_t.mul(table_li_co[co]) / 1e6  # TWh
+            imp = ie_raw.where(ie_raw > 0, 0).sum(axis=0)
+            exp = ie_raw.mask(ie_raw > 0, 0).sum(axis=0)
+    
+            mat_imp.loc[other_bus[co].loc[imp[imp > CLIP_VALUE_TWH].index], co] = imp[imp > CLIP_VALUE_TWH].values
+            mat_exp.loc[other_bus[co].loc[exp[exp < -CLIP_VALUE_TWH].index], co] = exp[exp < -CLIP_VALUE_TWH].values
+            
+    return mat_imp.fillna(0), mat_exp.fillna(0), table_li_co, other_bus
 
 def extract_transmission(n, carriers=["AC", "DC"],
                          units={"AC": "GW_e", "DC": "GW_e",
@@ -341,32 +370,9 @@ def extract_transmission(n, carriers=["AC", "DC"],
 
         buses_links = [c for c in transmission.columns if "bus" in c]
         country_map = transmission[buses_links].applymap(lambda x: bus_mapper(x, ni, column="country"))
-        table_li_co = pd.DataFrame([], index=country_map.index)
         transmission_co = {}
         mono_co = {}
-        if "hist" != y:
-            mat_imp = pd.DataFrame([], columns=ni.buses.country.unique(), index=ni.buses.country.unique()).rename_axis(
-                index='countries')
-            mat_exp = pd.DataFrame([], columns=ni.buses.country.unique(), index=ni.buses.country.unique()).rename_axis(
-                index='countries')
-            mat_imp['year'] = y
-            mat_exp['year'] = y
-
         for co in ni.buses.country.unique():
-            if "hist" != y:
-                table_li_co[co] = country_map.apply(lambda x: -1 if x.bus0 == co else 0, axis=1)
-                table_li_co[co] += country_map.apply(lambda x: 1 if x.bus1 == co else 0, axis=1)
-
-                other_bus = country_map.apply(lambda x: x.bus1 if x.bus0 == co else "", axis=1)
-                other_bus += country_map.apply(lambda x: x.bus0 if x.bus1 == co else "", axis=1)
-
-                ie_raw = transmission_t.mul(table_li_co[co]) / 1e6  # TWh
-                imp = ie_raw.where(ie_raw > 0, 0).sum(axis=0)
-                exp = ie_raw.mask(ie_raw > 0, 0).sum(axis=0)
-
-                mat_imp.loc[other_bus.loc[imp[imp > CLIP_VALUE_TWH].index], co] = imp[imp > CLIP_VALUE_TWH].values
-                mat_exp.loc[other_bus.loc[exp[exp < -CLIP_VALUE_TWH].index], co] = exp[exp < -CLIP_VALUE_TWH].values
-
             transmission_co[co] = (transmission
                                    .query("@co == @country_map.bus0 or @co == @country_map.bus1")
                                    .groupby("carrier")
@@ -389,6 +395,8 @@ def extract_transmission(n, carriers=["AC", "DC"],
         transmission_total = pd.DataFrame(transmission.groupby("carrier").p_nom_opt.sum()) / 1e3
         capacities.append(transmission_total.rename(columns={'p_nom_opt': y}))
 
+        # imports/exports
+        mat_imp, mat_exp, table_li_co, _  = calculate_imp_exp(country_map, transmission_t, y)
         if "hist" != y:
             imports.append(mat_imp.reset_index().set_index(['countries', 'year']))
             exports.append(mat_exp.reset_index().set_index(['countries', 'year']))
