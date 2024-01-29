@@ -105,7 +105,7 @@ FF_ELEC = ["OCGT", "CCGT", "coal/lignite"]
 FF_HEAT = ["residential / services oil boiler", "residential / services gas boiler"]
 PRODUCTION = FF_ELEC + ["PHS", "hydro", "nuclear", "urban central biomass CHP", "solid biomass"] + RES
 H2 = ["H2 Electrolysis", "H2 Fuel Cell"]
-BALANCE = H2 + ["battery discharger", "home battery discharger", "V2G", "ammonia cracker", "H2 Fuel Cell"]
+BALANCE = H2 + ["battery discharger", "home battery discharger", "V2G", "ammonia cracker"]
 
 CLIP_VALUE_TWH = 1e-1  # TWh
 CLIP_VALUE_GW = 1e-3  # GW
@@ -466,10 +466,17 @@ def extract_gas_phase_out(n, year):
                 .sum()
                 .reset_index()
                 .pivot(index="country", columns="build_year", values="p_carrier_nom_opt")
-                .sort_values(by=year, ascending=False)
             ) / 1e3  # GW
     n_cgt['units'] = 'GW_e'
-    return n_cgt[n_cgt[year] >= 1].fillna(0)
+    
+    if year in n_cgt.columns:
+        sorting = year
+    else:
+        sorting='hist'
+    
+    n_cgt = n_cgt.sort_values(by=sorting, ascending=False)
+    return n_cgt[n_cgt[sorting] >= 5].fillna(0)
+
 
 
 def extract_country_capacities(n):
@@ -1209,7 +1216,7 @@ def load_res_potentials():
     return (
         pd.read_csv(Path(csvs, "res_potentials.csv"), header=0)
         .drop(columns=years_str[:-1])
-        .groupby(by="carrier").agg({"2050": "sum", "units": "first"}).reset_index()
+        .groupby(by="carrier").agg({years_str[-1]: "sum", "units": "first"}).reset_index()
         .reindex(columns=excel_columns["last_units"])
     )
 
@@ -1358,7 +1365,7 @@ if __name__ == "__main__":
 
     df = {}
 
-    eu27_countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE",
+    eu27_countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "HR", "HU", "IE",
                       "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
 
     # Todo : type cast all references to year into str or int
