@@ -691,7 +691,7 @@ def extract_series(n):
             df = safe_load(f)["plotting"]["tech_colors"]
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
-                    prod_profiles = plot_series(ni, carrier="AC", name="AC", year=str(y),
+                    prod_profiles = plot_series(ni, carrier="electricity", name="electricity", year=str(y),
                                                 load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
  
     

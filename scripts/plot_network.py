@@ -975,11 +975,14 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
     assign_location(n)
     assign_carriers(n)
 
+    if carrier == "electricity":
+        buses = n.buses.query("'AC' in carrier or index.str.contains('low voltage')").index
+
     buses = n.buses.index[n.buses.carrier.str.contains(carrier)]
 
     supply = pd.DataFrame(index=n.snapshots)
     for c in n.iterate_components(n.branch_components):
-        n_port = 4 if c.name == "Link" else 2
+        n_port = 3 if c.name == "Link" else 2
         for i in range(n_port):
             supply = pd.concat(
                 (
@@ -1103,6 +1106,9 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
                 ],
             )
         )
+        loads = n.loads_t.p[buses].sum(axis=1)/1e3
+        loads.index = pd.to_datetime(pd.DatetimeIndex(loads.index.values).strftime(f'{year}-%m-%d-%H'))
+        loads[start:stop].plot(ax=ax, color= "k", linestyle='-')
 
     else:
         (
