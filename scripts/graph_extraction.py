@@ -1107,9 +1107,11 @@ def _load_costs(per_segment=False, per_year=False):
             for seg_name, seg in COST_SEGMENTS.items():
                 dico[f"{seg_name}_{co_name}"] = _load_costs_year_segment(countries=subset, cost_segment=seg)
                 # print(seg_name,seg)
-        else:
+        elif per_year:
             for y in years_str:
                 dico[f"{y}_{co_name}"] = _load_costs_year_segment(countries=subset, year=y)
+        else:
+            logging.warning("Unkown configuration to load costs.")
     return dico
 
 
