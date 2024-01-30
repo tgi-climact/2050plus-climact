@@ -98,6 +98,12 @@ RENAMER = {
     "urban central solar thermal": "residential / services solar thermal",
 }
 
+HEAT_RENAMER = {"residential rural heat": "dec_heat",
+                "services rural heat": "dec_heat",
+                "residential urban decentral heat": "dec_heat",
+                "services urban decentral heat": "dec_heat",
+                "urban central heat": "cent_heat"}
+
 RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"]
 LONG_TERM_STORAGE = ["H2 Store", "ammonia store"]
 SHORT_TERM_STORAGE = ["battery", "home battery", "EV batteries"]
@@ -937,6 +943,7 @@ def _load_supply_energy_dico(load=True, countries=None):
                              )
 
     for ca in supply_energy_carrier:
+        ca_name = HEAT_RENAMER[ca] if ca in HEAT_RENAMER else ca
         # Todo : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ? 
         if ca == "electricity":
             df_ac = _load_supply_energy(load=load, countries=countries, carriers="AC")
@@ -953,16 +960,16 @@ def _load_supply_energy_dico(load=True, countries=None):
             df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(), index=df.columns).T, df])
             df.iloc[0, 0] = 'Total'
             df.drop(df.query('sector == "V2G"').index, inplace=True)
-            dico[ca] = df
+            dico[ca_name] = df
         elif ca == "oil":
             if load and countries is not None:  # if load and countries exist
                 df_eu_load = _load_nodal_oil(countries)
                 df_c_load = _load_supply_energy(load=load, countries=countries, carriers=ca)
-                dico[ca] = pd.concat([df_c_load, df_eu_load])
+                dico[ca_name] = pd.concat([df_c_load, df_eu_load])
             else:
-                dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
+                dico[ca_name] = _load_supply_energy(load=load, countries=countries, carriers=ca)
         else:
-            dico[ca] = _load_supply_energy(load=load, countries=countries, carriers=ca)
+            dico[ca_name] = _load_supply_energy(load=load, countries=countries, carriers=ca)
 
     return dico
 
@@ -1029,18 +1036,12 @@ def load_supply_heat_be():
     dico = _load_supply_energy_dico(load=False, countries=["BE"])
     data = pd.DataFrame()
 
-    heat_renamer = {"residential rural heat": "decentral heat",
-                    "services rural heat": "decentral heat",
-                    "residential urban decentral heat": "decentral heat",
-                    "services urban decentral heat": "decentral heat",
-                    "urban central heat": "central heat"}
-
     for k, v in dico.items():
         to_add = v.copy()
-        to_add['carrier'] = heat_renamer.get(k)
+        to_add['carrier'] = HEAT_RENAMER.get(k)
         data = pd.concat([data, to_add], ignore_index=True)
 
-    for heat in ["decentral heat", "central heat"]:
+    for heat in ["dec_heat", "cent_heat"]:
         df[heat] = (
             data.loc[data.carrier.isin([heat])]
             .drop(columns="carrier")
@@ -1457,7 +1458,7 @@ if __name__ == "__main__":
     export = 'y'
 
     # global variables for which to do work
-    # countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countr2ies}
+    # countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countries}
     countries = {"be": ['BE']}
     imp_exp_carriers = ['elec', 'gas', 'H2']
 
