@@ -1058,8 +1058,7 @@ def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     if countries:
         df = df.query("country in @countries")
-        prices = pd.read_csv(Path(csvs, 'marginal_prices_countries.csv'), header=0)
-        costs_imp_exp = 0
+    prices = pd.read_csv(Path(csvs, 'marginal_prices_countries.csv'), header=0)
 
     cost_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
