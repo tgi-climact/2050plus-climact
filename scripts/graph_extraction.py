@@ -23,9 +23,9 @@ from make_summary import assign_carriers
 from make_summary import assign_locations
 from make_summary import calculate_nodal_capacities
 from make_summary import calculate_nodal_supply_energy
+from plot_network import plot_capacity
 from plot_network import plot_series
 from prepare_sector_network import get
-from plot_network import plot_capacity
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,8 @@ BALANCE = H2 + ["battery discharger", "home battery discharger", "V2G", "ammonia
 CLIP_VALUE_TWH = 1e-1  # TWh
 CLIP_VALUE_GW = 1e-3  # GW
 
-COST_SEGMENTS = {'prod':'Production', 'bal':'Balancing','tran':'Transport', 'net_imp': "Net_Imports"}
+COST_SEGMENTS = {'prod': 'Production', 'bal': 'Balancing', 'tran': 'Transport', 'net_imp': "Net_Imports"}
+
 
 # %% Utils
 def assign_countries(n):
@@ -310,52 +311,54 @@ def extract_res_potential(n):
     df_potential["units"] = "GW_e"
     return df_potential
 
-def extract_marginal_prices(n, carrier_list =['AC']):
+
+def extract_marginal_prices(n, carrier_list=['AC']):
     df = []
     for ca in carrier_list:
         prices = pd.DataFrame([]).rename_axis(index='countries')
         for y, ni in n.items():
             if 'hist' != y:
                 price_y = (
-                            ni.buses_t.marginal_price[ni.buses.query("carrier == @ca ").index]
-                           .mean()
-                           .groupby(lambda x: x[:2]).mean()
-                           )
+                    ni.buses_t.marginal_price[ni.buses.query("carrier == @ca ").index]
+                    .mean()
+                    .groupby(lambda x: x[:2]).mean()
+                )
                 prices[y] = price_y
         prices["carrier"] = ca.replace('AC', 'elec')
-        df.append(prices.reset_index().set_index(['countries','carrier']))
-    df = pd.concat(df,axis=0)
+        df.append(prices.reset_index().set_index(['countries', 'carrier']))
+    df = pd.concat(df, axis=0)
     return df
+
 
 def calculate_imp_exp(country_map, transmission_t, y):
     countries = country_map.stack().unique()
-    
+
     table_li_co = pd.DataFrame([], index=country_map.index)
-    other_bus = pd.DataFrame([],index=transmission_t.columns)
+    other_bus = pd.DataFrame([], index=transmission_t.columns)
     mat_imp = pd.DataFrame([], columns=countries, index=countries).rename_axis(
         index='countries')
     mat_exp = pd.DataFrame([], columns=countries, index=countries).rename_axis(
         index='countries')
     mat_imp['year'] = y
     mat_exp['year'] = y
-    
-    
+
     for co in countries:
         if "hist" != y:
             table_li_co[co] = country_map.apply(lambda x: -1 if x.bus0 == co else 0, axis=1)
             table_li_co[co] += country_map.apply(lambda x: 1 if x.bus1 == co else 0, axis=1)
-    
+
             other_bus[co] = country_map.apply(lambda x: x.bus1 if x.bus0 == co else "", axis=1)
             other_bus[co] += country_map.apply(lambda x: x.bus0 if x.bus1 == co else "", axis=1)
-    
+
             ie_raw = transmission_t.mul(table_li_co[co]) / 1e6  # TWh
             imp = ie_raw.where(ie_raw > 0, 0).sum(axis=0)
             exp = ie_raw.mask(ie_raw > 0, 0).sum(axis=0)
-    
+
             mat_imp.loc[other_bus[co].loc[imp[imp > CLIP_VALUE_TWH].index], co] = imp[imp > CLIP_VALUE_TWH].values
             mat_exp.loc[other_bus[co].loc[exp[exp < -CLIP_VALUE_TWH].index], co] = exp[exp < -CLIP_VALUE_TWH].values
-            
+
     return mat_imp.fillna(0), mat_exp.fillna(0), table_li_co, other_bus
+
 
 def extract_transmission(n, carriers=["AC", "DC"],
                          units={"AC": "GW_e", "DC": "GW_e",
@@ -413,7 +416,7 @@ def extract_transmission(n, carriers=["AC", "DC"],
         capacities.append(transmission_total.rename(columns={'p_nom_opt': y}))
 
         # imports/exports
-        mat_imp, mat_exp, table_li_co, _  = calculate_imp_exp(country_map, transmission_t, y)
+        mat_imp, mat_exp, table_li_co, _ = calculate_imp_exp(country_map, transmission_t, y)
         if "hist" != y:
             imports.append(mat_imp.reset_index().set_index(['countries', 'year']))
             exports.append(mat_exp.reset_index().set_index(['countries', 'year']))
@@ -494,15 +497,14 @@ def extract_gas_phase_out(n, year):
                 .pivot(index="country", columns="build_year", values="p_carrier_nom_opt")
             ) / 1e3  # GW
     n_cgt['units'] = 'GW_e'
-    
+
     if year in n_cgt.columns:
         sorting = year
     else:
-        sorting='hist'
-    
+        sorting = 'hist'
+
     n_cgt = n_cgt.sort_values(by=sorting, ascending=False)
     return n_cgt[n_cgt[sorting] >= 5].fillna(0)
-
 
 
 def extract_country_capacities(n):
@@ -693,8 +695,8 @@ def extract_series(n):
                 with pd.option_context('mode.chained_assignment', None):
                     prod_profiles = plot_series(ni, carrier="electricity", name="electricity", year=str(y),
                                                 load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
- 
-    
+
+
 def extract_plot_capacities(n):
     with plt.style.context(["ggplot"]):
         with open(Path(path, 'results/configs/config.snakemake.yaml'), 'r') as f:
@@ -703,7 +705,7 @@ def extract_plot_capacities(n):
                 with pd.option_context('mode.chained_assignment', None):
                     prod_profiles = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
                                                   bus_size_factor=1e5, path=Path(csvs, f"capacities_{y}.png"),
-                                                  run_from_rule=False,transmission=True)
+                                                  run_from_rule=False, transmission=True)
 
 
 def extract_data(years, n_path, n_name, countries=None, color_shift=None):
@@ -739,7 +741,6 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     n_ext = n.copy()
     n_ext['hist'] = n_bf.copy()
 
-
     # DataFrames to extract
     n_gas = extract_gas_phase_out(n, 2030)
     capa_country = extract_country_capacities(n_ext)
@@ -753,8 +754,8 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     nodal_supply_energy = extract_nodal_supply_energy(n)
     nodal_oil_load = extract_nodal_oil_load(nhours=n_bf.snapshot_weightings.generators.sum())
 
-    marginal_prices = extract_marginal_prices(n,carrier_list = ['gas','AC'])
-    
+    marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC'])
+
     el_imp['carriers'] = 'elec'
     el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
     H2_imp['carriers'] = 'h2'
@@ -792,7 +793,7 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     # Figures
     n_sto.savefig(Path(csvs, "storage_unit.png"))
     n_h2.savefig(Path(csvs, "h2_production.png"))
-    extract_series(n)
+    # extract_series(n)
     extract_plot_capacities(n)
 
     # extract country specific capacities
@@ -929,11 +930,11 @@ def _load_supply_energy_dico(load=True, countries=None):
 
     """
     dico = {}
-    supply_energy_carrier = ( _load_supply_energy(load=load, countries=countries)
-                     .carrier
-                     .replace({"AC": "electricity", "low voltage": "electricity"})
-                     .unique()
-                     )
+    supply_energy_carrier = (_load_supply_energy(load=load, countries=countries)
+                             .carrier
+                             .replace({"AC": "electricity", "low voltage": "electricity"})
+                             .unique()
+                             )
 
     for ca in supply_energy_carrier:
         # Todo : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ? 
@@ -943,15 +944,15 @@ def _load_supply_energy_dico(load=True, countries=None):
             df = pd.concat([df_ac, df_low])
             del df["carrier"]
             df = df.groupby(by="sector").sum().reset_index()
-            
-            if not(load) and countries:
-                df_imp = _load_imp_exp(export=False, countries=countries, carriers='elec', years = years)
-                df_exp = _load_imp_exp(export=True, countries=countries, carriers='elec', years = years)
-                df_net_imp = (df_imp[years]-df_exp[years]).sum()
-                df = pd.concat([df,pd.DataFrame(['Net Imports']+df_net_imp.values.tolist(),index=df.columns).T])
-            df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(),index=df.columns).T,df])
-            df.iloc[0,0] = 'Total'
-            df.drop(df.query('sector == "V2G"').index,inplace=True)
+
+            if not (load) and countries:
+                df_imp = _load_imp_exp(export=False, countries=countries, carriers='elec', years=years)
+                df_exp = _load_imp_exp(export=True, countries=countries, carriers='elec', years=years)
+                df_net_imp = (df_imp[years] - df_exp[years]).sum()
+                df = pd.concat([df, pd.DataFrame(['Net Imports'] + df_net_imp.values.tolist(), index=df.columns).T])
+            df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(), index=df.columns).T, df])
+            df.iloc[0, 0] = 'Total'
+            df.drop(df.query('sector == "V2G"').index, inplace=True)
             dico[ca] = df
         elif ca == "oil":
             if load and countries is not None:  # if load and countries exist
@@ -965,6 +966,7 @@ def _load_supply_energy_dico(load=True, countries=None):
 
     return dico
 
+
 def load_capacities(tech_list, historical):
     """
     Generic function loading for each countries subset the type given in input and the name associated,
@@ -975,6 +977,7 @@ def load_capacities(tech_list, historical):
     for co_name, subset in countries.items():
         dico[f"{co_name}"] = _load_capacities(tech_list, countries=subset, historical=historical)
     return dico
+
 
 def load_res_capacities():
     return load_capacities(RES, historical="Historical (planned by 2022)")
@@ -1003,11 +1006,12 @@ def load_fossil_fuels():
 def load_h2_capacities():
     return load_capacities(H2, historical="Historical (installed capacity by 2025)")
 
+
 def load_load_sectors():
     dico = {}
     for co_name, subset in countries.items():
-        to_rename =  _load_supply_energy_dico(load=True, countries=subset)
-        for k,v in to_rename.items():
+        to_rename = _load_supply_energy_dico(load=True, countries=subset)
+        for k, v in to_rename.items():
             dico[f"{co_name}_{k}"] = v
     return dico
 
@@ -1015,46 +1019,47 @@ def load_load_sectors():
 def load_supply_sectors():
     dico = {}
     for co_name, subset in countries.items():
-        to_rename =  _load_supply_energy_dico(load=False, countries=subset)
-        for k,v in to_rename.items():
+        to_rename = _load_supply_energy_dico(load=False, countries=subset)
+        for k, v in to_rename.items():
             dico[f"{co_name}_{k}"] = v
     return dico
 
+
 def load_supply_heat_be():
-    dico = _load_supply_energy_dico(load=False,countries=["BE"])
+    dico = _load_supply_energy_dico(load=False, countries=["BE"])
     data = pd.DataFrame()
-    
-    heat_renamer = {"residential rural heat" : "decentral heat",
-            "services rural heat" : "decentral heat",
-            "residential urban decentral heat" : "decentral heat",
-            "services urban decentral heat" : "decentral heat",
-            "urban central heat" : "central heat"}
-    
-    for k,v in dico.items():
+
+    heat_renamer = {"residential rural heat": "decentral heat",
+                    "services rural heat": "decentral heat",
+                    "residential urban decentral heat": "decentral heat",
+                    "services urban decentral heat": "decentral heat",
+                    "urban central heat": "central heat"}
+
+    for k, v in dico.items():
         to_add = v.copy()
         to_add['carrier'] = heat_renamer.get(k)
-        data = pd.concat([data,to_add],ignore_index=True)
-    
-    for heat in ["decentral heat","central heat"]:
-        df[heat]= ( 
+        data = pd.concat([data, to_add], ignore_index=True)
+
+    for heat in ["decentral heat", "central heat"]:
+        df[heat] = (
             data.loc[data.carrier.isin([heat])]
-                .drop(columns="carrier")
-                .groupby('sector').sum()
-                .reset_index()
-            ) 
+            .drop(columns="carrier")
+            .groupby('sector').sum()
+            .reset_index()
+        )
     return df
 
 
 # %% Costs load
 
-#generic function for calling costs
+# generic function for calling costs
 def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     if countries:
         df = df.query("country in @countries")
-        prices = pd.read_csv(Path(csvs,'marginal_prices_countries.csv'),header=0)
+        prices = pd.read_csv(Path(csvs, 'marginal_prices_countries.csv'), header=0)
         costs_imp_exp = 0
-        
+
     cost_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
     df = (
@@ -1062,28 +1067,30 @@ def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
         .groupby(["cost_segment", "cost"]).sum(numeric_only=True)
         .reset_index()
     )
-        
+
     if cost_segment:
-        net_cost = pd.DataFrame([], columns = imp_exp_carriers, index = years)
+        net_cost = pd.DataFrame([], columns=imp_exp_carriers, index=years)
         if cost_segment != "Net_Imports":
             df = df.query('cost_segment in @cost_segment')
-            
+
         if cost_segment == "Production" or cost_segment == "Net_Imports":
             for y in years:
                 for ca in imp_exp_carriers:
-                    imp = _load_imp_exp(export=False,countries=countries, carriers = ca, years = [y]).set_index('countries')*1e6 #MWh
-                    exp = _load_imp_exp(export=True,countries=countries, carriers = ca, years = [y]).set_index('countries')*1e6 #MWh
+                    imp = _load_imp_exp(export=False, countries=countries, carriers=ca, years=[y]).set_index(
+                        'countries') * 1e6  # MWh
+                    exp = _load_imp_exp(export=True, countries=countries, carriers=ca, years=[y]).set_index(
+                        'countries') * 1e6  # MWh
                     # print(f"Import of {imp.sum()[0]} and exports of {exp.sum()[0]} for {ca} in {y}")
-                    price_ca = prices.query("carrier == @ca").set_index('countries').loc[:,str(y)] #€/MWh
-                    net_cost.loc[y,ca] =0
-                    if len(imp)>0: 
-                        net_cost.loc[y,ca] += price_ca.loc[imp.index].dot(imp).sum()
-                    if len(exp)>0: 
-                        net_cost.loc[y,ca] -= (price_ca.loc[countries].mean()*exp).values.sum()
+                    price_ca = prices.query("carrier == @ca").set_index('countries').loc[:, str(y)]  # €/MWh
+                    net_cost.loc[y, ca] = 0
+                    if len(imp) > 0:
+                        net_cost.loc[y, ca] += price_ca.loc[imp.index].dot(imp).sum()
+                    if len(exp) > 0:
+                        net_cost.loc[y, ca] -= (price_ca.loc[countries].mean() * exp).values.sum()
             df.loc[df.query("'fuel' in cost").index, years_str] += net_cost.sum(axis=1).values
         if cost_segment == "Net_Imports":
             df = net_cost.reset_index()
-            
+
     else:
         df = (
             df.pivot(columns="cost", values=year, index="cost_segment")
@@ -1092,23 +1099,27 @@ def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
         )
     return df
 
-def _load_costs(per_segment = False, per_year=False):
+
+def _load_costs(per_segment=False, per_year=False):
     dico = {}
-    for co_name,subset in countries.items():
+    for co_name, subset in countries.items():
         if per_segment:
-            for seg_name,seg in COST_SEGMENTS.items() :
+            for seg_name, seg in COST_SEGMENTS.items():
                 dico[f"{seg_name}_{co_name}"] = _load_costs_year_segment(countries=subset, cost_segment=seg)
-                print(seg_name,seg)
+                # print(seg_name,seg)
         else:
             for y in years_str:
                 dico[f"{y}_{co_name}"] = _load_costs_year_segment(countries=subset, year=y)
     return dico
 
+
 def load_costs_years():
-    return  _load_costs(per_year=True)
+    return _load_costs(per_year=True)
+
 
 def load_costs_segments():
-    return  _load_costs(per_segment=True)
+    return _load_costs(per_segment=True)
+
 
 # def load_costs_2030_be():
 #     return (
@@ -1169,6 +1180,7 @@ def load_costs_total():
         pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     )
 
+
 # def load_costs_res():
 #     # ToDo Add segments and subsegments
 #     return pd.DataFrame()
@@ -1211,12 +1223,12 @@ def _load_imp_exp(export=True, countries=None, carriers=None, years=None):
             .drop(columns=['carriers', 'year'])
             .set_index('countries')
         )
-        
+
         if export:
             df_carrier = (df_carrier.T)
-        if countries and len(df_carrier):   
+        if countries and len(df_carrier):
             df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
-                                          df_carrier.columns.intersection(countries)]
+            df_carrier.columns.intersection(countries)]
         imp_exp.append(df_carrier
                        .sum(axis=1)
                        .rename(y)
@@ -1229,13 +1241,14 @@ def _load_imp_exp(export=True, countries=None, carriers=None, years=None):
 
 def load_imports_exports():
     dico = {}
-   
-    for imp_exp,exp_value in {'imports': False, 'exports' :True}.items():
+
+    for imp_exp, exp_value in {'imports': False, 'exports': True}.items():
         for ca in imp_exp_carriers:
-            for name,subset in countries.items():     
+            for name, subset in countries.items():
                 dico[f"{imp_exp}_{ca}_{name}"] = _load_imp_exp(export=exp_value,
                                                                countries=subset, carriers=ca, years=years)
     return dico
+
 
 # def load_imports_be():
 #     carriers = ['elec']  # ['elec','gas','h2']
@@ -1396,7 +1409,7 @@ def export_data():
 if __name__ == "__main__":
     # for testing
     config_file = "config.VEKA_Average.runner.yaml"
-    path = Path("analysis", "VEKA_av_bio_fix_nuc_bev")
+    path = Path("analysis", "VEKA_av_bio_fix_nuc_bev_ccl")
     dir_export = "graph_data"
     n_path = Path(path, "results")
 
@@ -1445,9 +1458,9 @@ if __name__ == "__main__":
 
     # global variables for which to do work
     # countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countr2ies}
-    countries = {"be":['BE']}
-    imp_exp_carriers = ['elec','gas', 'H2']
-    
+    countries = {"be": ['BE']}
+    imp_exp_carriers = ['elec', 'gas', 'H2']
+
     logger.info(f"Extracting from {path}")
     extract_data(years, n_path, n_name, countries=eu27_countries)
     export_data()
