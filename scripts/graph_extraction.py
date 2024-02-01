@@ -1056,9 +1056,12 @@ def load_supply_heat_be():
 # generic function for calling costs
 def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
+    prices = pd.read_csv(Path(csvs, 'marginal_prices_countries.csv'), header=0)
+
     if countries:
         df = df.query("country in @countries")
-    prices = pd.read_csv(Path(csvs, 'marginal_prices_countries.csv'), header=0)
+    else:
+        countries = prices.index.unique()
 
     cost_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
@@ -1459,8 +1462,8 @@ if __name__ == "__main__":
     export = 'y'
 
     # global variables for which to do work
-    # countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countries}
-    countries = {"be": ['BE']}
+    countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countries}
+    # countries = {"be": ['BE']}
     imp_exp_carriers = ['elec', 'gas', 'H2']
 
     logger.info(f"Extracting from {path}")
