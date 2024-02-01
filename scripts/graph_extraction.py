@@ -564,8 +564,9 @@ def extract_nodal_costs():
                            "level_3": "carrier"})
           )
     df['country'] = df['country'].str[:2].fillna('')
-    df.loc[df.carrier.isin(["gas", "biomass"]) & df.cost.str.contains('marginal') & df.type.str.contains(
-        'generators'), 'cost'] = 'fuel'
+    fuels = df.query("carrier in ['gas','oil','coal','lignite','uranium'] and cost == 'marginal' and type == 'generators'").index
+    biomass = df.query("carrier.str.contains('biomass') and cost == 'marginal' and type == 'stores'").index
+    df.loc[fuels.union(biomass),'cost'] = 'fuel'
     df = df.set_index(['type', 'cost', 'country', 'carrier'])
     df = df.fillna(0).groupby(['type', 'cost', 'country', 'carrier']).sum()
     df = df.loc[~df.apply(lambda x: x < 1e3).all(axis=1)]
