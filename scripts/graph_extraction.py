@@ -1084,7 +1084,6 @@ def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
                         'countries') * 1e6  # MWh
                     exp = _load_imp_exp(export=True, countries=countries, carriers=ca, years=[y]).set_index(
                         'countries') * 1e6  # MWh
-                    # print(f"Import of {imp.sum()[0]} and exports of {exp.sum()[0]} for {ca} in {y}")
                     price_ca = prices.query("carrier == @ca").set_index('countries').loc[:, str(y)]  # €/MWh
                     net_cost.loc[y, ca] = 0
                     if len(imp) > 0:
