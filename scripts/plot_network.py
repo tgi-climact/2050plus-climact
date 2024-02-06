@@ -1093,7 +1093,7 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
     fig, ax = plt.subplots()
     fig.set_size_inches((8, 5))
 
-    if load_only: 
+    if colors: 
         (
             supply.loc[start:stop, new_columns].plot(
                 ax=ax,
