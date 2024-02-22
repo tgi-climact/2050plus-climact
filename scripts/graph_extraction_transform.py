@@ -245,7 +245,7 @@ def extract_res_statistics(n):
         res = res.reset_index().merge(LCOE, on="carrier").set_index(["Generator", "year"])
         res = res.loc[:,
               ["carrier", 'bus', "capital_cost", "marginal_cost", "p_nom_opt", "build_year", "p_nom", "cf", 'p_tot',
-               "p_nom_max", "LCOE", "opex", "capex"]]
+               "p_nom_max", "LCOE", "opex", "capex", "totex"]]
         res = res.sort_values(by="carrier")
         df.append(res)
 
@@ -528,7 +528,7 @@ def get_p_carrier_nom_t(n, carrier):
     return df.T[[carrier]] / 1e3  # GW
 
 
-def extract_graphs(config, n, storage_function, storage_horizon, both=False, units={}, color_shift=None):
+def _extract_graphs(config, n, storage_function, storage_horizon, both=False, units={}, color_shift=None):
     carrier = list(storage_horizon.keys())
     if color_shift:
         pass
@@ -569,6 +569,30 @@ def extract_graphs(config, n, storage_function, storage_horizon, both=False, uni
 
     ax.legend()
     return {"": fig}
+
+
+def extract_graphs(config, n, color_shift=None):
+    ## Figures to extract
+    plt.close('all')
+    # Storage
+    mpl.rcParams.update(mpl.rcParamsDefault)
+    if color_shift:
+        pass
+    else:
+        color_shift = dict(zip(config["scenario"]["planning_horizons"], ['C0', 'C2', 'C1']))
+
+    storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
+    storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
+                       "battery": "ST", "home battery": "ST",
+                       "ammonia store": "LT"}
+    n_sto = _extract_graphs(config, n, storage_function, storage_horizon, color_shift=color_shift)
+    # h2
+    storage_function = {"H2 Fuel Cell": "get_p_carrier_nom_t", "H2 Electrolysis": "get_p_carrier_nom_t"}
+    storage_horizon = {"H2 Fuel Cell": "LT", "H2 Electrolysis": "LT", "H2 Store": "LT"}
+    n_h2 = _extract_graphs(config, n, storage_function, storage_horizon, color_shift=color_shift,
+                           both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
+                                             "H2 Store": "[TWh_{lhv,h2}]"})
+    return n_sto, n_h2
 
 
 def extract_series(config, n):
@@ -627,7 +651,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     n_costs = extract_nodal_costs(config)
     marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC'])
     nodal_supply_energy = extract_nodal_supply_energy(config, n)
-    n_gas = extract_gas_phase_out(n, config["scenario"]["planning_horizons"][0])
+    n_gas_out = extract_gas_phase_out(n, config["scenario"]["planning_horizons"][0])
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
     el_imp['carriers'] = 'elec'
@@ -639,35 +663,16 @@ def transform_data(config, n, n_ext, color_shift=None):
 
     imports = pd.concat([el_imp, H2_imp, gas_imp])
 
-    ## Figures to extract
-    plt.close('all')
-    # Storage
-    mpl.rcParams.update(mpl.rcParamsDefault)
-    if color_shift:
-        pass
-    else:
-        color_shift = dict(zip(config["scenario"]["planning_horizons"], ['C0', 'C2', 'C1']))
-
-    storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
-    storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
-                       "battery": "ST", "home battery": "ST",
-                       "ammonia store": "LT"}
-    n_sto = extract_graphs(config, n, storage_function, storage_horizon, color_shift=color_shift)
-    # h2
-    storage_function = {"H2 Fuel Cell": "get_p_carrier_nom_t", "H2 Electrolysis": "get_p_carrier_nom_t"}
-    storage_horizon = {"H2 Fuel Cell": "LT", "H2 Electrolysis": "LT", "H2 Store": "LT"}
-    n_h2 = extract_graphs(config, n, storage_function, storage_horizon, color_shift=color_shift,
-                          both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
-                                            "H2 Store": "[TWh_{lhv,h2}]"})
-
-    # Figures
+    # Figures to extract
+    n_sto, n_h2 = extract_graphs(config, n, color_shift)
     series_consumption = extract_series(config, n)
     map_capacities = extract_plot_capacities(config, n)
 
+    # Define outputs and export them
     outputs = {
         # assets
         'units_capacities_countries': capa_country,
-        'gas_phase_out': n_gas,
+        'gas_phase_out': n_gas_out,
         'res_potentials': n_res_pot,
 
         # networks

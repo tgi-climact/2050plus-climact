@@ -57,11 +57,13 @@ def _load_capacities(config, techs, historical="Historical (installed capacity b
 .
 
     """
+    techs
     df = (
         pd.read_csv(Path(config["csvs"], "units_capacities_countries.csv"), header=0)
         .drop(columns=["units"])
         .query("carrier in @techs")
     )
+    countries
     if countries:
         df = df.query("node in @countries")
 
@@ -118,25 +120,6 @@ def _load_supply_energy(config, load=True, carriers=None, countries=None):
     return df
 
 
-def _load_nodal_oil(config, countries):
-    df = (
-        pd.read_csv(Path(config["csvs"], "nodal_oil_load.csv"), header=0)
-    )
-
-    if countries:
-        df = df.query("node in @countries")
-
-    df = (
-        df.groupby(by="year").sum(numeric_only=True)
-        .T
-        .reset_index()
-        .rename(columns={"index": "sector"})
-    )
-    df.columns = [str(c) for c in df.columns]
-    df["carrier"] = "oil"
-    return df
-
-
 def _load_supply_energy_dico(config, load=True, countries=None):
     """
     Allow to split _load_supply_energy into its carriers for it
@@ -144,11 +127,12 @@ def _load_supply_energy_dico(config, load=True, countries=None):
 
     """
     dico = {}
-    supply_energy_carrier = (_load_supply_energy(config, load=load, countries=countries)
-                             .carrier
-                             .replace({"AC": "electricity", "low voltage": "electricity"})
-                             .unique()
-                             )
+    supply_energy_carrier = (
+        _load_supply_energy(config, load=load, countries=countries)
+        .carrier
+        .replace({"AC": "electricity", "low voltage": "electricity"})
+        .unique()
+    )
 
     for ca in supply_energy_carrier:
         ca_name = HEAT_RENAMER[ca] if ca in HEAT_RENAMER else ca
@@ -183,6 +167,61 @@ def _load_supply_energy_dico(config, load=True, countries=None):
             dico[ca_name] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
 
     return dico
+
+
+def _load_nodal_oil(config, countries):
+    df = (
+        pd.read_csv(Path(config["csvs"], "nodal_oil_load.csv"), header=0)
+    )
+
+    if countries:
+        df = df.query("node in @countries")
+
+    df = (
+        df.groupby(by="year").sum(numeric_only=True)
+        .T
+        .reset_index()
+        .rename(columns={"index": "sector"})
+    )
+    df.columns = [str(c) for c in df.columns]
+    df["carrier"] = "oil"
+    return df
+
+
+def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None):
+    """
+    Return the imports or export of a subset of countries per country external to the subset
+    for a given carrier. Since the network imports/exports are zero-sum, the exports can be obtained
+    from the imports matrix
+
+    """
+    imp_exp = []
+    carriers
+    for y in years:
+        df_carrier = (
+            pd.read_csv(Path(config["csvs"], "imports_exports.csv"), header=0)
+            .query('carriers == @carriers')
+            .query('year == @y')
+            .drop(columns=['carriers', 'year'])
+            .set_index('countries')
+        )
+
+        if export:
+            df_carrier = (df_carrier.T)
+        try:
+            if countries and len(df_carrier):
+                df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
+                df_carrier.columns.intersection(countries)]
+        except:
+            pass
+        imp_exp.append(df_carrier
+                       .sum(axis=1)
+                       .rename(y)
+                       .to_frame())
+    imp_exp = pd.concat(imp_exp, axis=1).rename_axis(index="countries")
+    return (
+        imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
+    )
 
 
 def load_capacities(config, tech_list, historical):
@@ -356,47 +395,6 @@ def load_costs_years(config):
 
 def load_costs_segments(config):
     return _load_costs(config, per_segment=True)
-
-
-def load_costs_total(config):
-    return (
-        pd.read_csv(Path(config["csvs"], "costs_countries.csv"), header=0)
-    )
-
-
-def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None):
-    """
-    Return the imports or export of a subset of countries per country external to the subset
-    for a given carrier. Since the network imports/exports are zero-sum, the exports can be obtained
-    from the imports matrix
-
-    """
-    imp_exp = []
-    for y in years:
-        df_carrier = (
-            pd.read_csv(Path(config["csvs"], "imports_exports.csv"), header=0)
-            .query('carriers == @carriers')
-            .query('year == @y')
-            .drop(columns=['carriers', 'year'])
-            .set_index('countries')
-        )
-
-        if export:
-            df_carrier = (df_carrier.T)
-        try:
-            if countries and len(df_carrier):
-                df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
-                df_carrier.columns.intersection(countries)]
-        except:
-            pass
-        imp_exp.append(df_carrier
-                       .sum(axis=1)
-                       .rename(y)
-                       .to_frame())
-    imp_exp = pd.concat(imp_exp, axis=1).rename_axis(index="countries")
-    return (
-        imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
-    )
 
 
 # %% Non standard loads
