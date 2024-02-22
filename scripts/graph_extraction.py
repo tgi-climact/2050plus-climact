@@ -118,6 +118,9 @@ CLIP_VALUE_GW = 1e-3  # GW
 
 COST_SEGMENTS = {'prod': 'Production', 'bal': 'Balancing', 'tran': 'Transport', 'net_imp': "Net_Imports"}
 
+EU27_COUNTRIES = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "HR", "HU", "IE",
+                  "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
+
 
 # %% Utils
 def assign_countries(n):
@@ -337,7 +340,7 @@ def extract_marginal_prices(n, carrier_list=['AC']):
 
 
 def calculate_imp_exp(country_map, transmission_t, y):
-    countries = country_map.stack().unique()
+    countries = sorted(country_map.stack().unique())
 
     table_li_co = pd.DataFrame([], index=country_map.index)
     other_bus = pd.DataFrame([], index=transmission_t.columns)
@@ -563,7 +566,7 @@ def extract_nodal_costs():
                            "level_2": "country",
                            "level_3": "carrier"})
           )
-    df['country'] = df['country'].str[:2].fillna('')
+    df['country'] = df['country'].str[:2].fillna('EU')
     fuels = df.query("carrier in ['gas','oil','coal','lignite','uranium'] and cost == 'marginal' and type == 'generators'").index
     biomass = df.query("carrier.str.contains('biomass') and cost == 'marginal' and type == 'stores'").index
     df.loc[fuels.union(biomass),'cost'] = 'fuel'
@@ -1055,14 +1058,34 @@ def load_supply_heat_be():
 # %% Costs load
 
 # generic function for calling costs
-def _load_costs_year_segment(year=None, countries=None, cost_segment=None):
+def _load_costs_year_segment(year=None, _countries=None, cost_segment=None):
+    """
+    Return the costs per segment for a given year or per year for a given segment,
+    considering a subset of countries to consider
+    Parameters
+    ----------
+    year : TYPE, optional
+        DESCRIPTION. The default is None.
+    _countries : TYPE, optional
+        DESCRIPTION. The default is None.
+    cost_segment : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    df : TYPE
+        DESCRIPTION.
+
+    """
     df = pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     prices = pd.read_csv(Path(csvs, 'marginal_prices_countries.csv'), header=0)
 
-    if countries:
-        df = df.query("country in @countries")
+    if _countries:
+        df = df.query("country in @_countries")
+        countries = list(set(_countries).intersection(set(df.country.unique())))
+        
     else:
-        countries = prices.index.unique()
+        countries = prices.countries.unique()
 
     cost_mapping = pd.read_csv(
         Path(path.resolve().parents[1], "cost_mapping.csv"), index_col=[0, 1], header=0).dropna()
@@ -1108,11 +1131,11 @@ def _load_costs(per_segment=False, per_year=False):
     for co_name, subset in countries.items():
         if per_segment:
             for seg_name, seg in COST_SEGMENTS.items():
-                dico[f"{seg_name}_{co_name}"] = _load_costs_year_segment(countries=subset, cost_segment=seg)
+                dico[f"{seg_name}_{co_name}"] = _load_costs_year_segment(_countries=subset, cost_segment=seg)
                 # print(seg_name,seg)
         elif per_year:
             for y in years_str:
-                dico[f"{y}_{co_name}"] = _load_costs_year_segment(countries=subset, year=y)
+                dico[f"{y}_{co_name}"] = _load_costs_year_segment(_countries=subset, year=y)
         else:
             logging.warning("Unkown configuration to load costs.")
     return dico
@@ -1231,9 +1254,12 @@ def _load_imp_exp(export=True, countries=None, carriers=None, years=None):
 
         if export:
             df_carrier = (df_carrier.T)
-        if countries and len(df_carrier):
-            df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
-            df_carrier.columns.intersection(countries)]
+        try:
+            if countries and len(df_carrier):
+                df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
+                df_carrier.columns.intersection(countries)]
+        except:
+            pass
         imp_exp.append(df_carrier
                        .sum(axis=1)
                        .rename(y)
@@ -1446,8 +1472,7 @@ if __name__ == "__main__":
 
     df = {}
 
-    eu27_countries = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "HR", "HU", "IE",
-                      "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
+
 
     # Todo : type cast all references to year into str or int
     excel_columns = {"all_years": ["carrier", "hist"] + years_str,
@@ -1462,7 +1487,7 @@ if __name__ == "__main__":
     export = 'y'
 
     # global variables for which to do work
-    countries = {"tot": None, "be" : ["BE"], "eu27": eu27_countries}
+    countries = {"tot": None, "be" : ["BE"], "eu27": EU27_COUNTRIES}
     # countries = {"be": ['BE']}
     imp_exp_carriers = ['elec', 'gas', 'H2']
 
