@@ -225,7 +225,40 @@ def get_p_carrier_nom_t(n, carrier):
     df.drop(columns=["Link"], inplace=True)
     return df.T[[carrier]] / 1e3  # GW
 
+def prepare_networks(n_path):
+    n = {}
+    for y in years:
+        run_name = Path(n_path, "postnetworks", n_name + f"{y}.nc")
+        n[y] = pypsa.Network(run_name)
+        assign_carriers(n[y])
+        assign_locations(n[y])
+        assign_countries(n[y])
+        change_p_nom_opt_carrier(n[y])
+    
+    # get historical capacities
+    n_bf = pypsa.Network(Path(n_path, "prenetworks-brownfield", n_name + f"{2030}.nc"))
+    assign_countries(n_bf)
+    assign_carriers(n_bf)
+    assign_locations(n_bf)
 
+    year_hist = 2026
+    n_bf.generators = n_bf.generators.query(f'build_year < {year_hist}')
+    n_bf.links = n_bf.links.query(f'build_year < {year_hist}')
+    n_bf.storage_units = n_bf.storage_units.query(f'build_year < {year_hist}')
+    n_bf.generators.p_nom_opt = n_bf.generators.p_nom
+    n_bf.links.p_nom_opt = n_bf.links.p_nom
+    n_bf.storage_units.p_nom_opt = n_bf.storage_units.p_nom
+    n_bf.lines.carrier = "AC"
+    n_bf.lines.s_nom_opt = n_bf.lines.s_nom_min
+    n_bf.links.loc[n_bf.links.carrier.isin(["DC"]), 'p_nom_opt'] = n_bf.links.loc[
+        n_bf.links.carrier.isin(["DC"]), 'p_nom_min']
+    change_p_nom_opt_carrier(n_bf)
+    
+    
+    n_ext = n.copy()
+    n_ext['hist'] = n_bf.copy()
+    
+    return n, n_ext
 # %% Extract functions
 # def extract_production_profiles(n, subset):
 #     profiles = []
@@ -479,7 +512,7 @@ def extract_graphs(n, storage_function, storage_horizon, both=False, units={}, c
             plotting(ax, car, l, y, unit=r"${}$".format(units.get(car, '[TWh]')))
 
     ax.legend()
-    return fig
+    return {"": fig}
 
 
 def extract_gas_phase_out(n, year):
@@ -576,6 +609,39 @@ def extract_nodal_costs():
     df.insert(0, column="units", value="Euro")
     return df
 
+def extract_res_statistics(n):
+    
+    df = []
+    for y, ni in n.items():
+        
+        res = ni.generators.copy().query("carrier in @RES")
+        res_t = ni.generators_t.p[res.index]
+        res['year'] = y
+        cf = (res_t / (res["p_nom_opt"])).mean()
+        p_tot = res_t.sum() * ni.snapshot_weightings.generators.mean()
+        opex = p_tot * ni.generators.marginal_cost
+        capex = res.capital_cost * res.p_nom_opt
+    
+        res.loc[cf.index, "cf"] = cf
+        res.loc[cf.index, "p_tot"] = p_tot
+        res.loc[cf.index, "opex"] = opex
+        res.loc[cf.index, "capex"] = capex
+        res.loc[cf.index, "totex"] = res.loc[cf.index,
+                                             "capex"] + res.loc[cf.index, "opex"]
+    
+
+        LCOE = res.groupby(by=["carrier"]).totex.sum() / \
+            res.groupby(by=["carrier"]).p_tot.sum()
+        LCOE = LCOE.rename("carrier").to_frame().rename(
+            columns={"carrier": "LCOE"})
+        res = res.reset_index().merge(LCOE, on="carrier").set_index(["Generator","year"])
+        res = res.loc[:,
+                      ["carrier", 'bus', "capital_cost", "marginal_cost", "p_nom_opt", "build_year", "p_nom", "cf", 'p_tot',
+                       "p_nom_max", "LCOE", "opex", "capex"]]
+        res = res.sort_values(by="carrier")
+        df.append(res)
+    
+    return pd.concat(df)
 
 rx = re.compile(r"([A-Z]{2})[0-9]\s[0-9]")
 
@@ -700,72 +766,37 @@ def extract_loads(n):
 def extract_series(n):
     with plt.style.context(["ggplot"]):
         with open(Path(path, 'results/configs/config.snakemake.yaml'), 'r') as f:
-            df = safe_load(f)["plotting"]["tech_colors"]
+            df = safe_load(f)["plotting"]
+            plots = {}
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
-                    prod_profiles = plot_series(ni, carrier="electricity", name="electricity", year=str(y),
-                                                load_only=True, colors=df, path=Path(csvs, f"series_AC_{y}.png"))
-
+                    plots[y] = plot_series(ni, carrier="electricity", name="electricity", year=str(y),
+                                                load_only=True, colors=df["tech_colors"], path=Path(csvs, f"series_AC_{y}.png"), save = False)
+    return plots                  
 
 def extract_plot_capacities(n):
     with plt.style.context(["ggplot"]):
         with open(Path(path, 'results/configs/config.snakemake.yaml'), 'r') as f:
             df = safe_load(f)["plotting"]
+            plots = {}
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
-                    prod_profiles = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
+                    plots[y] = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
                                                   bus_size_factor=1e5, path=Path(csvs, f"capacities_{y}.png"),
-                                                  run_from_rule=False, transmission=True)
+                                                  run_from_rule=False, transmission=True, save = False)
+    return plots                
 
-
-def extract_data(years, n_path, n_name, countries=None, color_shift=None):
-    n = {}
+def extract_data(n, n_ext, years, n_path, n_name, color_shift=None):
     df["nodal_capacities"] = pd.DataFrame(columns=years, dtype=float)
 
-    for y in years:
-        run_name = Path(n_path, "postnetworks", n_name + f"{y}.nc")
-        n[y] = pypsa.Network(run_name)
-        assign_carriers(n[y])
-        assign_locations(n[y])
-        assign_countries(n[y])
-        change_p_nom_opt_carrier(n[y])
-
-    # get historical capacities
-    n_bf = pypsa.Network(Path(n_path, "prenetworks-brownfield", n_name + f"{2030}.nc"))
-    assign_countries(n_bf)
-    assign_carriers(n_bf)
-    assign_locations(n_bf)
-
-    year_hist = 2026
-    n_bf.generators = n_bf.generators.query(f'build_year < {year_hist}')
-    n_bf.links = n_bf.links.query(f'build_year < {year_hist}')
-    n_bf.storage_units = n_bf.storage_units.query(f'build_year < {year_hist}')
-    n_bf.generators.p_nom_opt = n_bf.generators.p_nom
-    n_bf.links.p_nom_opt = n_bf.links.p_nom
-    n_bf.storage_units.p_nom_opt = n_bf.storage_units.p_nom
-    n_bf.lines.carrier = "AC"
-    n_bf.lines.s_nom_opt = n_bf.lines.s_nom_min
-    n_bf.links.loc[n_bf.links.carrier.isin(["DC"]), 'p_nom_opt'] = n_bf.links.loc[
-        n_bf.links.carrier.isin(["DC"]), 'p_nom_min']
-    change_p_nom_opt_carrier(n_bf)
-    n_ext = n.copy()
-    n_ext['hist'] = n_bf.copy()
-
     # DataFrames to extract
-    n_gas = extract_gas_phase_out(n, 2030)
     capa_country = extract_country_capacities(n_ext)
-    n_loads = extract_loads(n)
+    n_gas = extract_gas_phase_out(n, years[0])
+    n_res_pot = extract_res_potential(n)
+
     ACDC_grid, ACDC_countries, el_imp = extract_transmission(n_ext)
     H2_grid, H2_countries, H2_imp = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
     gas_grid, gas_countries, gas_imp = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
-    n_costs = extract_nodal_costs()
-    # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
-    n_res_pot = extract_res_potential(n)
-    nodal_supply_energy = extract_nodal_supply_energy(n)
-    nodal_oil_load = extract_nodal_oil_load(nhours=n_bf.snapshot_weightings.generators.sum())
-
-    marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC'])
-
     el_imp['carriers'] = 'elec'
     el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
     H2_imp['carriers'] = 'h2'
@@ -774,9 +805,18 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
     gas_imp = gas_imp.reset_index().set_index(['countries', 'year', 'carriers'])
 
     imports = pd.concat([el_imp, H2_imp, gas_imp])
+    nodal_supply_energy = extract_nodal_supply_energy(n)
+    nodal_oil_load = extract_nodal_oil_load(nhours=n_ext['hist'].snapshot_weightings.generators.sum())
 
-    plt.close('all')
+    n_costs = extract_nodal_costs()
+    marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC'])
+    n_loads = extract_loads(n) 
+    res_stats = extract_res_statistics(n)
+
+    # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
+
     ## Figures to extract
+    plt.close('all')
     # Storage
     mpl.rcParams.update(mpl.rcParamsDefault)
     if color_shift:
@@ -796,39 +836,60 @@ def extract_data(years, n_path, n_name, countries=None, color_shift=None):
                           both=True, units={"H2 Fuel Cell": "[GW_e]", "H2 Electrolysis": "[GW_e]",
                                             "H2 Store": "[TWh_{lhv,h2}]"})
 
-    # Todo : put in a separate function
-    # extract
+    # Figures
+    series_consumption = extract_series(n)
+    map_capacities = extract_plot_capacities(n)
+
+    outputs = {
+        # assets
+        'units_capacities_countries' : capa_country,
+        'gas_phase_out' : n_gas,
+        'res_potentials' : n_res_pot ,
+        
+        # networks
+        'grid_capacities_countries' : ACDC_countries,
+        'H2_network_capacities_countries' : H2_countries,
+        'gas_network_capacities_countries' : gas_countries,
+        'grid_capacities' : ACDC_grid,
+        'H2_network_capacities' : H2_grid,
+        'gas_network_capacities' : gas_grid,
+        
+        #energy balance
+        'imports_exports' : imports,
+        'supply_energy_sectors' : nodal_supply_energy,
+        'nodal_oil_load' : nodal_oil_load,
+        
+        # insights
+        'costs_countries' : n_costs,
+        'marginal_prices_countries' : marginal_prices,
+        'res_statistics' : res_stats,
+        'loads_profiles' : n_loads,
+        }
+    
+    figures = {
+        'storage_unit' : n_sto,
+        'h2_production' : n_h2,
+        'series_consumption' : series_consumption,
+        'map_capacities' : map_capacities
+        }
+    
+    return outputs, figures
+
+def export_csvs_figures(csvs, outputs, figures):
     csvs.mkdir(parents=True, exist_ok=True)
 
-    # Figures
-    n_sto.savefig(Path(csvs, "storage_unit.png"))
-    n_h2.savefig(Path(csvs, "h2_production.png"))
-    # extract_series(n)
-    extract_plot_capacities(n)
+    for f_name, f in figures.items():
+        for y, plot in f.items():
+            plot.savefig(Path(csvs,f"{f_name}_{y}.png"), transparent=True)
+        
+    for o_name, o in outputs.items():
+        o.to_csv(Path(csvs,f"{o_name}.csv"))
+    
+    logger.info(f"Exported files and figures to folder : {csvs}")
 
-    # extract country specific capacities
-    ACDC_countries.to_csv(Path(csvs, "grid_capacities_countries.csv"))
-    H2_countries.to_csv(Path(csvs, "H2_network_capacities_countries.csv"))
-    gas_countries.to_csv(Path(csvs, "gas_network_capacities_countries.csv"))
-    capa_country.to_csv(Path(csvs, "units_capacities_countries.csv"))
-    n_costs.to_csv(Path(csvs, 'costs_countries.csv'))
-    nodal_supply_energy.to_csv(Path(csvs, 'supply_energy_sectors.csv'))
-    nodal_oil_load.to_csv(Path(csvs, 'nodal_oil_load.csv'))
-    n_res_pot.to_csv(Path(csvs, "res_potentials.csv"))
-    imports.to_csv(Path(csvs, 'imports_exports.csv'))
-    marginal_prices.to_csv(Path(csvs, 'marginal_prices_countries.csv'))
-
-    # Non country specific
-    ACDC_grid.to_csv(Path(csvs, "grid_capacities.csv"))
-    H2_grid.to_csv(Path(csvs, "H2_network_capacities.csv"))
-    gas_grid.to_csv(Path(csvs, "gas_network_capacities.csv"))
-    n_gas.to_csv(Path(csvs, "gas_phase_out.csv"))
-
-    # extract temporal profiles
-    n_loads.to_csv(Path(csvs, "loads_profiles.csv"))
+    return
     # n_profile.to_csv(Path(csvs, "generation_profiles.csv"))
 
-    logger.info(f"Exported files to folder : {csvs}")
     return
 
 
@@ -1492,5 +1553,8 @@ if __name__ == "__main__":
     imp_exp_carriers = ['elec', 'gas', 'H2']
 
     logger.info(f"Extracting from {path}")
-    extract_data(years, n_path, n_name, countries=eu27_countries)
+    n, n_ext = prepare_networks(n_path)
+    outputs, figures = extract_data(n, n_ext, years, n_path, n_name)
+    export_csvs_figures(csvs, outputs, figures)
+
     export_data()

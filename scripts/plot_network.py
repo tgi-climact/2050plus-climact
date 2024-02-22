@@ -35,7 +35,7 @@ def rename_techs_tyndp(tech):
         return "power-to-heat"
     elif tech in ["H2 Electrolysis", "methanation", "helmeth", "H2 liquefaction"]:
         return "power-to-gas"
-    elif tech == "H2":
+    elif tech == "H2" or tech == "H2 Store":
         return "H2 storage"
     elif tech in ["NH3", "Haber-Bosch", "ammonia cracker", "ammonia store"]:
         return "ammonia"
@@ -261,7 +261,9 @@ def plot_capacity(
     colors=None,
     _map_opts=None,
     path=None,
-    run_from_rule=True
+    run_from_rule=True,
+    save=True,
+    techs = None
 ):
     """
     This function mainly do the same as plot_map do but for another metric (here capacities).
@@ -273,6 +275,8 @@ def plot_capacity(
         
     if _map_opts:
         map_opts = _map_opts
+    else:
+        map_opts = snakemake.config["plotting"]["map"]
 
     n = network.copy()
     assign_location(n)
@@ -358,25 +362,19 @@ def plot_capacity(
     ac_color = "rosybrown"
     dc_color = "darkseagreen"
 
-    if run_from_rule:
-        if snakemake.wildcards["ll"] == "v1.0":
-            # should be zero
-            line_widths = n.lines.s_nom_opt - n.lines.s_nom
-            link_widths = n.links.p_nom_opt - n.links.p_nom
-            title = "added grid"
+    #what is done anyway
+    line_widths = n.lines.s_nom_opt - n.lines.s_nom_min
+    link_widths = n.links.p_nom_opt - n.links.p_nom_min
+    title = "added grid"
     
-            if transmission:
-                line_widths = n.lines.s_nom_opt
-                link_widths = n.links.p_nom_opt
-                linewidth_factor = 2e3
-                line_lower_threshold = 0.0
-                title = "current grid"
-    else:
-        line_widths = n.lines.s_nom_opt - n.lines.s_nom_min
-        link_widths = n.links.p_nom_opt - n.links.p_nom_min
-        title = "added grid"
-
-        if transmission:
+    if transmission:
+        if run_from_rule and snakemake.wildcards["ll"] != "v1.0" :
+            line_widths = n.lines.s_nom_opt
+            link_widths = n.links.p_nom_opt
+            linewidth_factor = 2e3
+            line_lower_threshold = 0.0
+            title = "current grid"
+        else:
             line_widths = n.lines.s_nom_opt
             link_widths = n.links.p_nom_opt
             title = "total grid"
@@ -457,11 +455,13 @@ def plot_capacity(
             legend_kw=legend_kw,
         )
 
-    if path:
-        fig.savefig(path, transparent=True, bbox_inches="tight")
+    if save:
+        if path:
+            fig.savefig(path, transparent=True, bbox_inches="tight")
+        else:
+            fig.savefig(snakemake.output.capacities.replace(".pdf",fig_format), transparent=True, bbox_inches="tight",dpi=300)
     else:
-        fig.savefig(snakemake.output.capacities, transparent=True, bbox_inches="tight")
-
+        return fig
 
 def group_pipes(df, drop_direction=False):
     """
@@ -494,12 +494,12 @@ def plot_h2_map(network, regions):
 
     assign_location(n)
 
-    h2_storage = n.stores.query("carrier == 'H2'")
+    h2_storage = n.stores.query("carrier == 'H2 Store'")
     regions["H2"] = h2_storage.rename(
         index=h2_storage.bus.map(n.buses.location)
-    ).e_nom_opt.div(
+    ).groupby(level=0).agg({"e_nom_opt": sum}) .div(
         1e6
-    )  # TWh
+    ) # TWh
     regions["H2"] = regions["H2"].where(regions["H2"] > 0.1)
 
     bus_size_factor = 1e5
@@ -569,7 +569,7 @@ def plot_h2_map(network, regions):
     link_widths_total = h2_total / linewidth_factor
 
     n.links.rename(index=lambda x: x.split("-2")[0], inplace=True)
-    n.links = n.links.groupby(level=0).first()
+    n.links = n.links.groupby(level=0).agg({"p_nom_opt": "sum", "carrier": "first", "bus0" : "first", "bus1": "first"})
     link_widths_total = link_widths_total.reindex(n.links.index).fillna(0.0)
     link_widths_total[n.links.p_nom_opt < line_lower_threshold] = 0.0
 
@@ -619,7 +619,7 @@ def plot_h2_map(network, regions):
         cmap="Blues",
         linewidths=0,
         legend=True,
-        vmax=6,
+        vmax=10,
         vmin=0,
         legend_kwds={
             "label": "Hydrogen Storage [TWh]",
@@ -685,7 +685,7 @@ def plot_h2_map(network, regions):
     ax.set_facecolor("white")
 
     fig.savefig(
-        snakemake.output.map.replace("-costs-all", "-h2_network"), bbox_inches="tight"
+        snakemake.output.map.replace("-costs-all", "-h2_network").replace(".pdf",fig_format), bbox_inches="tight", dpi=300
     )
 
 
@@ -969,16 +969,16 @@ def plot_map_without(network):
     fig.savefig(snakemake.output.today, transparent=True, bbox_inches="tight")
 
 
-def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
-                _stop = "-02-01", _start = "-01-01", year = "2013", colors = None):
+def plot_series(network, carrier="AC", name="test", load_only= None, path = None,
+                _stop = "-02-01", _start = "-01-01", year = "2013", colors = None, save=True):
     n = network.copy()
     assign_location(n)
     assign_carriers(n)
 
     if carrier == "electricity":
         buses = n.buses.query("'AC' in carrier or index.str.contains('low voltage')").index
-
-    buses = n.buses.index[n.buses.carrier.str.contains(carrier)]
+    else:
+        buses = n.buses.index[n.buses.carrier.str.contains(carrier)]
 
     supply = pd.DataFrame(index=n.snapshots)
     for c in n.iterate_components(n.branch_components):
@@ -1027,7 +1027,7 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
     supply = pd.concat((supply, negative_supply), axis=1)
     
     if load_only:
-        supply = supply.loc[:,~(supply<0).any(axis=0)]
+        supply = supply.loc[:,~(supply<0).all(axis=0)]
 
     # 14-21.2 for flaute
     # 19-26.1 for flaute
@@ -1106,7 +1106,7 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
                 ],
             )
         )
-        loads = n.loads_t.p[buses].sum(axis=1)/1e3
+        loads = n.loads_t.p[n.loads.query('bus in @buses').index].sum(axis=1)/1e3
         loads.index = pd.to_datetime(pd.DatetimeIndex(loads.index.values).strftime(f'{year}-%m-%d-%H'))
         loads[start:stop].plot(ax=ax, color= "k", linestyle='-')
 
@@ -1140,18 +1140,20 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path= None,
     ax.legend(new_handles, new_labels, ncol=3, loc="upper left", frameon=False)
     ax.set_xlim([start, stop])
     if load_only:
-        ax.set_ylim([-100, supply.sum().max()*2/1e3])
+        ax.set_ylim([supply.sum().min()*1.5/1e3, supply.sum().max()*2/1e3])
     else:
         ax.set_ylim([-1000, 1900])
     ax.grid(True)
     ax.set_ylabel("Power [GW]")
     fig.tight_layout()
 
-    if load_only:
-        fig.savefig(path, transparent=True)
+    if save:
+        if path:
+            fig.savefig(path, transparent=True)
+        else:
+            fig.savefig(snakemake.output.series, transparent=True)
     else:
-        fig.savefig(snakemake.output.series, transparent=True)
-
+        return fig
 
 if __name__ == "__main__":
     if "snakemake" not in globals():
@@ -1172,7 +1174,7 @@ if __name__ == "__main__":
     overrides = override_component_attrs(snakemake.input.overrides)
     n = pypsa.Network(snakemake.input.network, override_component_attrs=overrides)
 
-    regions = gpd.read_file(snakemake.input.regions).set_index("name")
+    regions = gpd.read_file(snakemake.input.regions.replace("onshore","offshore")).set_index("name")
 
     map_opts = snakemake.config["plotting"]["map"]
 
@@ -1185,6 +1187,8 @@ if __name__ == "__main__":
         bus_size_factor=2e10,
         transmission=False,
     )
+    
+    fig_format = ".png"
 
     plot_capacity(
         n,
