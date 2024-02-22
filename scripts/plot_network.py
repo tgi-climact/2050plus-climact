@@ -299,7 +299,11 @@ def plot_capacity(
         transmissions = ["DC", "gas pipeline", "gas pipeline new", "CO2 pipeline", "H2 pipeline",
                          "H2 pipeline retrofitted", "electricity distribution grid"]
         balance_carriers_exclude = balance_exclude + carriers + transmissions
-        df_c = df_c[~df_c.carrier.isin(balance_carriers_exclude)]
+        if techs : 
+            df_c = df_c.query("carrier in @techs")
+            carriers_links = techs
+        else :
+            df_c = df_c[~df_c.carrier.isin(balance_carriers_exclude)]
         if comp == "links":
             df_links = getattr(n, comp)
             df_c = pd.concat([df_c, df_links[df_links.carrier.isin(carriers_links)]])
