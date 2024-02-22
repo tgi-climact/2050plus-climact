@@ -197,11 +197,6 @@ def change_p_nom_opt_carrier(n, carriers=['AC'], temporal=True):
     return
 
 
-def reduce_to_countries(df, index):
-    buses = [c for c in df.columns if "bus" in c]
-    return df.loc[df.loc[:, buses].applymap(lambda x: x in index).values.any(axis=1)]
-
-
 def get_state_of_charge_t(n, carrier):
     df = n.storage_units_t.state_of_charge.T.reset_index()
     df = df.merge(n.storage_units.reset_index()[["carrier", "StorageUnit"]], on="StorageUnit")
@@ -1210,89 +1205,10 @@ def load_costs_segments():
     return _load_costs(per_segment=True)
 
 
-# def load_costs_2030_be():
-#     return (
-#         _load_costs("2030", countries=["BE"])
-#     )
-
-
-# def load_costs_2030_eu27():
-#     return (
-#         _load_costs("2030", countries=eu27_countries)
-#     )
-
-
-# def load_costs_2040_be():
-#     return (
-#         _load_costs("2040", countries=["BE"])
-#     )
-
-
-# def load_costs_2040_eu27():
-#     return (
-#         _load_costs("2030", countries=eu27_countries)
-#     )
-
-
-# def load_costs_2050_be():
-#     return (
-#         _load_costs("2050", countries=["BE"])
-#     )
-
-
-# def load_costs_2050_eu27():
-#     return (
-#         _load_costs("2030", countries=eu27_countries)
-#     )
-
-
-# def load_costs_prod_be():
-#     return (
-#         _load_costs(cost_segment='Production', countries=["BE"])
-#     )
-
-
-# def load_costs_tran_be():
-#     return (
-#         _load_costs(cost_segment='Transport', countries=["BE"])
-#     )
-
-
-# def load_costs_bal_be():
-#     return (
-#         _load_costs(cost_segment='Balancing', countries=["BE"])
-#     )
-
-
 def load_costs_total():
     return (
         pd.read_csv(Path(csvs, "costs_countries.csv"), header=0)
     )
-
-
-# def load_costs_res():
-#     # ToDo Add segments and subsegments
-#     return pd.DataFrame()
-
-
-# def load_costs_flex():
-#     # ToDo Add segments and subsegments
-#     return pd.DataFrame()
-
-
-# def load_costs_segments():
-#     # ToDo Add segments and subsegments
-#     return pd.DataFrame()
-
-
-# def load_costs_thermal():
-#     # ToDo Add segments and subsegments
-#     return pd.DataFrame()
-
-
-# def load_costs_type():
-#     # ToDo Add segments and subsegments
-#     return pd.DataFrame()
 
 
 # %% Non standard loads
@@ -1340,22 +1256,6 @@ def load_imports_exports():
                 dico[f"{imp_exp}_{ca}_{name}"] = _load_imp_exp(export=exp_value,
                                                                countries=subset, carriers=ca, years=years)
     return dico
-
-
-# def load_imports_be():
-#     carriers = ['elec']  # ['elec','gas','h2']
-#     dico = {}
-#     for ca in carriers:
-#         dico[ca] = _load_imp_exp(export=False, countries=['BE'], carriers=ca, years=years)
-#     return dico
-
-
-# def load_exports_be():
-#     carriers = ['elec']  # ['elec','gas','h2']
-#     dico = {}
-#     for ca in carriers:
-#         dico[ca] = _load_imp_exp(export=True, countries=['BE'], carriers=ca, years=years)
-#     return dico
 
 
 def load_gas_phase_out():
@@ -1418,18 +1318,6 @@ def load_res_potentials_be():
         .drop(columns=years_str[:-1])
         .reindex(columns=excel_columns["last_units"])
     )
-
-
-# def load_h2_production():
-#     return (
-#         pd.read_csv(Path(csvs, "generation_profiles.csv"), header=0)
-#         .rename(columns={"Carrier": "carrier"})
-#         .query("carrier in ['H2 Electrolysis', 'H2 Fuel Cell']")
-#         .groupby(by=["Year", "carrier"]).agg({"Annual sum [TWh]": "sum"})
-#         .pivot_table(index="carrier", columns="Year", values="Annual sum [TWh]")
-#         .reset_index()
-#     )
-
 
 def load_industrial_demand():
     return (
