@@ -1248,9 +1248,25 @@ def _load_imp_exp(export=True, countries=None, carriers=None, years=None):
 
 
 def load_imports_exports():
+    """ 
+    This function loads the imports and exports per countries susbet with the 
+    rest of the system, for all countries subset and per carrier. 
+    If the countries subset is None, imports and exports are given per country 
+    with the rest of the system:
+        e.g. : 
+            * countries = {'tot' : None} will call for 
+                - a DataFrame with the total imports per country and for each carrier
+                - a DataFrame with the total exports per country and for each carrier
+            * countries = {'EU27' : EU27_COUNTRIES} will call for 
+                - a DataFrame with the total imports of EU27 countries from external countries
+                    per country and for each carrier
+                - a DataFrame with the total exports of EU27 countries to external countries
+                    per country and for each carrier
+            
+    """
     dico = {}
 
-    for imp_exp, exp_value in {'imports': False, 'exports': True}.items():
+    for imp_exp, exp_value in {'imp': False, 'exp': True}.items():
         for ca in imp_exp_carriers:
             for name, subset in countries.items():
                 dico[f"{imp_exp}_{ca}_{name}"] = _load_imp_exp(export=exp_value,
@@ -1379,7 +1395,13 @@ def export_data():
                 o.to_excel(xl, sheet_name=output, index=False)
             elif isinstance(o, dict):
                 for k, v in o.items():
-                    v.to_excel(xl, sheet_name=output + "_" + k, index=False)
+                    sheet_name = output + "_" + k
+                    # Determine sheet name
+                    max_sheet_name_length = 31  # Limit sheet name to 31 char to enhance compatibility support (Excel)
+                    overflow_char = ".."
+                    sheet_name = (sheet_name[:max_sheet_name_length - len(overflow_char)] + overflow_char)\
+                        if len(sheet_name) > max_sheet_name_length - len(overflow_char) else sheet_name
+                    v.to_excel(xl, sheet_name=sheet_name, index=False)
             else:
                 logging.warning(f"Given output for {output} is not mapped out to output file.")
     return
