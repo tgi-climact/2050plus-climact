@@ -66,8 +66,8 @@ def change_p_nom_opt_carrier(n, carriers=['AC'], temporal=True):
     li = n.links
     li_t = n.links_t
     li["efficiency0"] = 1
-    li["p_carrier_nom_opt"] = li.p_nom_opt
-    li_t["p_carrier_nom_opt"] = li_t.p0
+    li["p_carrier_nom_opt"] = li.p_nom_opt.copy()
+    li_t["p_carrier_nom_opt"] = li_t.p0.copy()
     efficiency_map = li[[c for c in li.columns if "efficiency" in c]].rename(columns={"efficiency": "efficiency1"})
     buses_links = [c for c in li.columns if "bus" in c]
     carrier_map = li[buses_links].applymap(lambda x: bus_mapper(x, n, column="carrier"))
