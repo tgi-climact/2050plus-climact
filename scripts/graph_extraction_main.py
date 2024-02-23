@@ -15,7 +15,7 @@ import logging
 from pathlib import Path
 
 from graph_extraction_extract import extract_data
-from graph_extraction_load import load_data
+from graph_extraction_load_xl import load_data_xl
 from graph_extraction_transform import transform_data
 from graph_extraction_utils import load_config
 
@@ -48,7 +48,7 @@ def main():
     transform_data(config, n, n_ext)
 
     # Load data
-    load_data(config)
+    load_data_xl(config)
 
     logger.info("Done")
 

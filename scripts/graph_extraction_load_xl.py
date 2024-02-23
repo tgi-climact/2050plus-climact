@@ -4,17 +4,18 @@
 # SPDX-License-Identifier: MIT
 
 """
-Create data ready to present (load)
+Create data ready to present (load to excel)
 """
 import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from scripts.graph_extraction_utils import CLIP_VALUE_GW
-from scripts.graph_extraction_utils import CLIP_VALUE_TWH
+from scripts.graph_extraction_utils import HEAT_RENAMER
 from scripts.graph_extraction_utils import RES
+from scripts.graph_extraction_utils import _load_nodal_oil
+from scripts.graph_extraction_utils import _load_supply_energy
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,6 @@ LONG_LIST_LINKS = ["coal/lignite", "oil", "CCGT", "OCGT", "H2 Electrolysis", "H2
                    "hydro"]
 LONG_LIST_GENS = ["solar", "solar rooftop", "onwind", "offwind", "offwind-ac", "offwind-dc", "ror", "nuclear",
                   "urban central solid biomass CHP", "home battery", "battery", "H2 Store", "ammonia store"]
-HEAT_RENAMER = {"residential rural heat": "dec_heat", "services rural heat": "dec_heat",
-                "residential urban decentral heat": "dec_heat", "services urban decentral heat": "dec_heat",
-                "urban central heat": "cent_heat"}
 LONG_TERM_STORAGE = ["H2 Store", "ammonia store"]
 SHORT_TERM_STORAGE = ["battery", "home battery", "EV batteries"]
 FF_ELEC = ["OCGT", "CCGT", "coal/lignite"]
@@ -76,45 +74,6 @@ def _load_capacities(config, techs, historical="Historical (installed capacity b
 
     df = df.set_index(idx)
     df = df[df.sum(axis=1) >= CLIP_VALUE_GW * (len(config["scenario"]["planning_horizons"]) + 1)]
-    df = df.reset_index()
-
-    return df
-
-
-def _load_supply_energy(config, load=True, carriers=None, countries=None):
-    """
-    Load nodal supply energy data and aggregate on carrier and sector, given some conditions.
-    :param load: If True, keep only load data (negatives values)
-    :param carriers: If specified, keep only a given carrier
-    :param countries: If specified, keep a specific list of countries
-    :return:
-    """
-    df = (
-        pd.read_csv(Path(config["csvs"], "supply_energy_sectors.csv"), header=0)
-    )
-
-    def get_load_supply(x):
-        if load:
-            return x.where(x <= 0, np.nan) * -1
-        else:
-            return x.where(x > 0, np.nan)
-
-    df[config["years_str"]] = df[config["years_str"]].apply(get_load_supply)
-    df = df.dropna(subset=config["years_str"], how="all")
-
-    if carriers:
-        df = df.query("carrier in @carriers")
-    if countries:
-        df = df.query("node in @countries")
-
-    idx = ["carrier", "sector"]
-    df = (
-        df.groupby(by=idx).sum().reset_index()
-        .reindex(columns=config["excel_columns"]["future_years_sector"])
-    )
-
-    df = df.set_index(idx)
-    df = df[df.sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])]
     df = df.reset_index()
 
     return df
@@ -178,25 +137,6 @@ def _load_supply_energy_dico(config, load=True, countries=None):
                 .drop('carrier',axis=1))
         dico[heat] = df
     return dico
-
-
-def _load_nodal_oil(config, countries):
-    df = (
-        pd.read_csv(Path(config["csvs"], "nodal_oil_load.csv"), header=0)
-    )
-
-    if countries:
-        df = df.query("node in @countries")
-
-    df = (
-        df.groupby(by="year").sum(numeric_only=True)
-        .T
-        .reset_index()
-        .rename(columns={"index": "sector"})
-    )
-    df.columns = [str(c) for c in df.columns]
-    df["carrier"] = "oil"
-    return df
 
 
 def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None):
@@ -520,10 +460,8 @@ def load_industrial_demand(config):
 #         .reset_index()
 #     )
 
-
-#%%Load data
-def load_data(config):
-    logger.info(f"Exporting data")
+def load_data_xl(config):
+    logger.info(f"Exporting data to excel")
 
     outputs = [
         # Standard load

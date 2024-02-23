@@ -10,13 +10,18 @@ import logging
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import yaml
 
 CLIP_VALUE_TWH = 1e-1  # TWh
 CLIP_VALUE_GW = 1e-3  # GW
 RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"]
+HEAT_RENAMER = {"residential rural heat": "dec_heat", "services rural heat": "dec_heat",
+                "residential urban decentral heat": "dec_heat", "services urban decentral heat": "dec_heat",
+                "urban central heat": "cent_heat"}
 
 logger = logging.getLogger(__name__)
+
 
 def load_config(config_file, analysis_path, n_path, dir_export):
     logger.info("Loading configuration")
@@ -59,6 +64,77 @@ def bus_mapper(x, n, column=None):
         return n.buses.loc[x, column]
     else:
         return np.nan
+
+
+def _load_supply_energy(config, load=True, carriers=None, countries=None, aggregate=True):
+    """
+    Load nodal supply energy data and aggregate on carrier and sector, given some conditions.
+    :param load: If True, keep only load data (negatives values)
+    :param carriers: If specified, keep only a given carrier
+    :param countries: If specified, keep a specific list of countries
+    :param aggregate: If specified, determine if data are aggregated
+    :return:
+    """
+    df = (
+        pd.read_csv(Path(config["csvs"], "supply_energy_sectors.csv"), header=0)
+    )
+
+    def get_load_supply(x):
+        if load:
+            return x.where(x <= 0, np.nan) * -1
+        else:
+            return x.where(x > 0, np.nan)
+
+    df[config["years_str"]] = df[config["years_str"]].apply(get_load_supply)
+    df = df.dropna(subset=config["years_str"], how="all")
+
+    if carriers:
+        df = df.query("carrier in @carriers")
+    if countries:
+        df = df.query("node in @countries")
+    if aggregate:
+        idx = ["carrier", "sector"]
+        df = (
+            df.groupby(by=idx).sum().reset_index()
+            .reindex(columns=config["excel_columns"]["future_years_sector"])
+        )
+    else:
+        idx = ["carrier", "sector", "node"]
+        df = df.reindex(columns=["carrier", "sector", "node", "2030", "2040", "2050"])
+
+    df = df.set_index(idx)
+    df = df[df.sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])]
+    df = df.reset_index()
+
+    return df
+
+
+def _load_nodal_oil(config, countries=None, aggregate=True):
+    df = (
+        pd.read_csv(Path(config["csvs"], "nodal_oil_load.csv"), header=0)
+    )
+
+    if countries:
+        df = df.query("node in @countries")
+
+    if aggregate:
+        df = (
+            df.groupby(by="year").sum(numeric_only=True)
+            .T
+            .reset_index()
+            .rename(columns={"index": "sector"})
+        )
+    else:
+        df = (
+            df.melt(id_vars=["year", "node"])
+            .rename(columns={"variable": "sector"})
+            .pivot_table(index=["sector", "node"], columns="year", values="value")
+            .reset_index()
+        )
+
+    df.columns = [str(c) for c in df.columns]
+    df["carrier"] = "oil"
+    return df
 
 # def extract_production_profiles(n, subset):
 #     profiles = []
