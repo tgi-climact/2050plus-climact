@@ -649,14 +649,14 @@ def transform_data(config, n, n_ext, color_shift=None):
     H2_grid, H2_countries, H2_imp = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
     gas_grid, gas_countries, gas_imp = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
     n_costs = extract_nodal_costs(config)
-    marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC'])
+    marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC', 'H2'])
     nodal_supply_energy = extract_nodal_supply_energy(config, n)
     n_gas_out = extract_gas_phase_out(n, config["scenario"]["planning_horizons"][0])
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
     el_imp['carriers'] = 'elec'
     el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
-    H2_imp['carriers'] = 'h2'
+    H2_imp['carriers'] = 'H2'
     H2_imp = H2_imp.reset_index().set_index(['countries', 'year', 'carriers'])
     gas_imp['carriers'] = 'gas'
     gas_imp = gas_imp.reset_index().set_index(['countries', 'year', 'carriers'])
