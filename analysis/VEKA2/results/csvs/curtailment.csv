@@ -1,0 +1,22 @@
+cluster,37m,37m,37m
+ll,v3.0,v3.0,v3.0
+opt,3H-I-T-H-B-A-CCL,3H-I-T-H-B-A-CCL,3H-I-T-H-B-A-CCL
+planning_horizon,2030,2040,2050
+carrier,,,
+coal,-inf,-inf,-inf
+gas,-inf,-inf,-inf
+lignite,-inf,-inf,-inf
+offwind,0.893,8.308,
+offwind-ac,22.063,2.181,2.657
+offwind-dc,0.196,0.941,1.696
+oil,-inf,-inf,-inf
+onwind,0.707,2.346,2.685
+residential rural solar thermal,14.424,0.001,0.018
+residential urban decentral solar thermal,14.383,0.002,0.006
+ror,0.001,0.011,0.027
+services rural solar thermal,13.157,0.001,0.001
+services urban decentral solar thermal,15.019,0.006,0.007
+solar,0.115,0.419,1.059
+solar rooftop,0.16,0.183,0.379
+uranium,-inf,-inf,-inf
+urban central solar thermal,0.0,1.186,0.245
