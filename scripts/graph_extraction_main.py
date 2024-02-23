@@ -16,6 +16,7 @@ from pathlib import Path
 
 from graph_extraction_extract import extract_data
 from graph_extraction_load_xl import load_data_xl
+from graph_extraction_load_st import load_data_st
 from graph_extraction_transform import transform_data
 from graph_extraction_utils import load_config
 
@@ -49,6 +50,7 @@ def main():
 
     # Load data
     load_data_xl(config)
+    load_data_st(config)
 
     logger.info("Done")
 
