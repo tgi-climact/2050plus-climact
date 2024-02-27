@@ -67,12 +67,22 @@ def load_supply_energy_df(config, load=True):
     df = pd.concat(dfl)
     return df
 
+def load_imports_exports(config):
+    """
+    This function loads the imports and exports for all countries, carriers and years
+    considered during the runs. The table loaded is imports_exports, as it is only filtering that is done
+    at streamlit level.
+
+    """
+    
+    return pd.read_csv(Path(config["csvs"], "imports_exports.csv"))
 
 def load_data_st(config):
     logger.info(f"Exporting data to streamlit")
 
     outputs = [
         "supply_energy_df",
+        "imports_exports"
     ]
 
     with pd.ExcelWriter(Path(config["path"]["analysis_path"], "graph_extraction_st.xlsx")) as xl:

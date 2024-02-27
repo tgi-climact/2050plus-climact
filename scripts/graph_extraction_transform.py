@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from yaml import safe_load
 
 from scripts.graph_extraction_utils import CLIP_VALUE_TWH
+from scripts.graph_extraction_utils import TRANSMISSION_RENAMER
 from scripts.graph_extraction_utils import RES
 from scripts.graph_extraction_utils import bus_mapper
 from scripts.make_summary import calculate_nodal_capacities
@@ -318,7 +319,7 @@ def calculate_imp_exp(country_map, transmission_t, y):
             exp = ie_raw.mask(ie_raw > 0, 0).sum(axis=0)
 
             mat_imp.loc[other_bus[co].loc[imp[imp > CLIP_VALUE_TWH].index], co] = imp[imp > CLIP_VALUE_TWH].values
-            mat_exp.loc[other_bus[co].loc[exp[exp < -CLIP_VALUE_TWH].index], co] = exp[exp < -CLIP_VALUE_TWH].values
+            mat_exp.loc[other_bus[co].loc[exp[exp < -CLIP_VALUE_TWH].index], co] = -exp[exp < -CLIP_VALUE_TWH].values
 
     return mat_imp.fillna(0), mat_exp.fillna(0), table_li_co, other_bus
 
@@ -387,11 +388,17 @@ def extract_transmission(n, carriers=["AC", "DC"],
     df = pd.concat(capacities, axis=1)
     df_co = pd.concat(capacities_countries, axis=0)
     df_imp = pd.concat(imports, axis=0).fillna(0)
+    df_imp['imports_exports'] = 'imports'
     df_exp = pd.concat(exports, axis=0).fillna(0)
+    df_exp['imports_exports'] = 'exports'
+
 
     df["units"] = df.index.map(units)
     df_co["units"] = df_co.index.get_level_values(level=1).map(units)
-    return df, df_co, df_imp
+    df_imp_exp = pd.concat([df_imp,df_exp])
+    df_imp_exp["carriers"] = TRANSMISSION_RENAMER.get(carriers[0])
+
+    return df, df_co, df_imp_exp
 
 
 def extract_nodal_costs(config):
@@ -645,23 +652,18 @@ def transform_data(config, n, n_ext, color_shift=None):
     n_res_pot = extract_res_potential(n)
     res_stats = extract_res_statistics(n)
     capa_country = extract_country_capacities(config, n_ext)
-    ACDC_grid, ACDC_countries, el_imp = extract_transmission(n_ext)
-    H2_grid, H2_countries, H2_imp = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
-    gas_grid, gas_countries, gas_imp = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
+    ACDC_grid, ACDC_countries, el_imp_exp = extract_transmission(n_ext)
+    H2_grid, H2_countries, H2_imp_exp = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
+    gas_grid, gas_countries, gas_imp_exp = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
     n_costs = extract_nodal_costs(config)
     marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC', 'H2'])
     nodal_supply_energy = extract_nodal_supply_energy(config, n)
     n_gas_out = extract_gas_phase_out(n, config["scenario"]["planning_horizons"][0])
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
-    el_imp['carriers'] = 'elec'
-    el_imp = el_imp.reset_index().set_index(['countries', 'year', 'carriers'])
-    H2_imp['carriers'] = 'H2'
-    H2_imp = H2_imp.reset_index().set_index(['countries', 'year', 'carriers'])
-    gas_imp['carriers'] = 'gas'
-    gas_imp = gas_imp.reset_index().set_index(['countries', 'year', 'carriers'])
-
-    imports = pd.concat([el_imp, H2_imp, gas_imp])
+    imp_exp = pd.concat([y.reset_index()
+                         .set_index(['imports_exports','countries', 'year', 'carriers'])
+                         for y in [el_imp_exp, H2_imp_exp, gas_imp_exp]])
 
     # Figures to extract
     n_sto, n_h2 = extract_graphs(config, n, color_shift)
@@ -684,7 +686,7 @@ def transform_data(config, n, n_ext, color_shift=None):
         'gas_network_capacities': gas_grid,
 
         # energy balance
-        'imports_exports': imports,
+        'imports_exports': imp_exp,
         'supply_energy_sectors': nodal_supply_energy,
         'nodal_oil_load': nodal_oil_load,
 

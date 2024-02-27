@@ -16,6 +16,7 @@ from scripts.graph_extraction_utils import HEAT_RENAMER
 from scripts.graph_extraction_utils import RES
 from scripts.graph_extraction_utils import _load_nodal_oil
 from scripts.graph_extraction_utils import _load_supply_energy
+from scripts.graph_extraction_utils import query_imp_exp
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +95,7 @@ def _load_supply_energy_dico(config, load=True, countries=None):
     )
     #TODO add h2 and gas imports and exports
     for ca in supply_energy_carrier:
-        ca
-        # Todo : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ?
+        # TODO : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ?
         if ca == "electricity":
             df_ac = _load_supply_energy(config, load=load, countries=countries, carriers="AC")
             df_low = _load_supply_energy(config, load=load, countries=countries, carriers="low voltage")
@@ -147,29 +147,13 @@ def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None
 
     """
     imp_exp = []
-    carriers
+    df = pd.read_csv(Path(config["csvs"], "imports_exports.csv"), header=0)
     for y in years:
-        df_carrier = (
-            pd.read_csv(Path(config["csvs"], "imports_exports.csv"), header=0)
-            .query('carriers == @carriers')
-            .query('year == @y')
-            .drop(columns=['carriers', 'year'])
-            .set_index('countries')
-        )
-
-        if export:
-            df_carrier = (df_carrier.T)
-        try:
-            if countries and len(df_carrier):
-                df_carrier = df_carrier.loc[df_carrier.columns.difference(countries),
-                df_carrier.columns.intersection(countries)]
-        except:
-            pass
-        imp_exp.append(df_carrier
-                       .sum(axis=1)
-                       .rename(y)
-                       .to_frame())
-    imp_exp = pd.concat(imp_exp, axis=1).rename_axis(index="countries")
+        imports_exports = 'exports' if export else 'imports'
+        df_carrier = query_imp_exp(df.copy(), carriers, countries, y, imports_exports)
+        imp_exp.append(df_carrier.rename(y))
+    imp_exp = pd.concat(imp_exp, axis=1)
+    #TODO treat the display of exports/imports that does not specifically have the same countries displayed
     return (
         imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
     )

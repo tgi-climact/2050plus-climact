@@ -36,7 +36,7 @@ def main():
 
     config["eu27_countries"] = ["AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "GR", "ES", "FI", "FR", "HR", "HU",
                                 "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK"]
-
+    config["eu27_countries"] = list(set(config["eu27_countries"]).intersection(set(config["countries"])))
     # global variables for which to do work
     config["countries"] = {"tot": None, "be": ["BE"], "eu27": config["eu27_countries"]}
     # config["countries"] = {"be": ['BE']}

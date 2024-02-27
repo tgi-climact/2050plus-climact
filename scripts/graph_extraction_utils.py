@@ -19,6 +19,8 @@ RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"
 HEAT_RENAMER = {"residential rural heat": "dec_heat", "services rural heat": "dec_heat",
                 "residential urban decentral heat": "dec_heat", "services urban decentral heat": "dec_heat",
                 "urban central heat": "cent_heat"}
+TRANSMISSION_RENAMER = {"AC" : "elec", "DC" : "elec" , "H2 pipeline" : "H2",
+                        "H2 pipeline retrofitted" : "H2", "gas pipeline" : "gas", "gas pipeline new" : "gas"}
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,27 @@ def load_config(config_file, analysis_path, n_path, dir_export):
                                "first_hist_units": ["carrier", "hist"] + [config["years_str"][0], "units"]}
 
     return config
+
+
+def query_imp_exp(df, carriers, countries, year, imports_exports) : 
+    if countries is not None:
+        country_list = df.columns.intersection(countries)
+    else:
+        country_list = df.columns.intersection(df.countries.unique())
+       
+    df_imp_exp = (
+          df.query("carriers == @carriers")
+            .query("year == @year")
+            .query("imports_exports == @imports_exports")
+            .drop(["carriers","year","imports_exports"], axis=1)
+            .set_index('countries')
+            )
+    if countries is not None:
+        df_imp_exp = (df_imp_exp
+                .loc[df_imp_exp.index.symmetric_difference(countries),country_list]
+                )
+    df_imp_exp = df_imp_exp.sum(axis=1)
+    return df_imp_exp
 
 
 def bus_mapper(x, n, column=None):
