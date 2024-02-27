@@ -77,12 +77,19 @@ def load_imports_exports(config):
     
     return pd.read_csv(Path(config["csvs"], "imports_exports.csv"))
 
+
+def load_generation_profiles(config):
+    
+    return pd.read_csv(Path(config["csvs"], "generation_profiles.csv")) 
+
+#%% Load main
 def load_data_st(config):
     logger.info(f"Exporting data to streamlit")
 
     outputs = [
         "supply_energy_df",
-        "imports_exports"
+        "imports_exports",
+        "generation_profiles"
     ]
 
     with pd.ExcelWriter(Path(config["path"]["analysis_path"], "graph_extraction_st.xlsx")) as xl:

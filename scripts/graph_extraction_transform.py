@@ -252,6 +252,23 @@ def extract_res_statistics(n):
 
     return pd.concat(df)
 
+def extract_production_profiles(config, n, regionalized = False):
+    production_profiles = []
+    for carrier in config['carriers_to_plot']:
+        df = []
+        for y, ni in n.items():            
+            df.append(plot_series(ni, carrier=carrier, name=carrier, year=str(y),
+                                   return_data = True, load_only = True, regionalized=regionalized))
+            print(f'Extracted {carrier} for year {y}')
+        df = pd.concat(df)
+        df['carrier'] = carrier
+        production_profiles.append(df)
+    production_profiles = (pd.concat(production_profiles)
+                           .reset_index()
+                           .set_index(["carrier","snapshots","country"] if regionalized else ["carrier","snapshots"])
+                           )
+    return production_profiles
+
 
 def extract_country_capacities(config, n):
     df = {}
@@ -647,6 +664,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     logger.info(f"Transforming data")
 
     # DataFrames to extract
+    prod_profiles = extract_production_profiles(config,n)
     n_loads = extract_loads(n)
     nodal_oil_load = extract_nodal_oil_load(config, nhours=n_ext['hist'].snapshot_weightings.generators.sum())
     n_res_pot = extract_res_potential(n)
@@ -695,6 +713,7 @@ def transform_data(config, n, n_ext, color_shift=None):
         'marginal_prices_countries': marginal_prices,
         'res_statistics': res_stats,
         'loads_profiles': n_loads,
+        "generation_profiles" : prod_profiles
     }
 
     figures = {

@@ -41,6 +41,7 @@ def main():
     config["countries"] = {"tot": None, "be": ["BE"], "eu27": config["eu27_countries"]}
     # config["countries"] = {"be": ['BE']}
     config["imp_exp_carriers"] = ['elec', 'gas', 'H2']
+    config["carriers_to_plot"] = ["electricity", "heat"]
 
     # Extract data
     n, n_ext = extract_data(config, )
