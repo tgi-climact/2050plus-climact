@@ -974,7 +974,8 @@ def plot_map_without(network):
 
 
 def plot_series(network, carrier="AC", name="test", load_only= None, path = None,
-                _stop = "-02-01", _start = "-01-01", year = "2013", colors = None, save=True):
+                _stop = "-02-01", _start = "-01-01", year = "2013", colors = None,
+                save=True, return_data = False, regionalized=False):
     n = network.copy()
     assign_location(n)
     assign_carriers(n)
@@ -994,7 +995,7 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
                     (-1)
                     * c.pnl["p" + str(i)]
                     .loc[:, c.df.index[c.df["bus" + str(i)].isin(buses)]]
-                    .groupby(c.df.carrier, axis=1)
+                    .groupby([c.df.carrier,c.df["bus" + str(i)]], axis=1)
                     .sum(),
                 ),
                 axis=1,
@@ -1006,12 +1007,27 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
             (
                 supply,
                 ((c.pnl["p"].loc[:, comps]).multiply(c.df.loc[comps, "sign"]))
-                .groupby(c.df.carrier, axis=1)
+                .groupby([c.df.carrier,c.df.bus], axis=1)
                 .sum(),
             ),
             axis=1,
         )
 
+    # Map buses to countries in MultiIndex
+    supply.index = pd.to_datetime(pd.DatetimeIndex(supply.index.values,name='snapshots').strftime(f'{year}-%m-%d-%H'))
+    supply.columns = pd.MultiIndex.from_tuples(
+        [(x, n.buses.loc[y,"country"]) for (x,y) in supply.columns.values],
+        names=["carrier","country"])
+    supply = (supply.groupby(level = [0,1], axis = 1)
+              .sum()
+              .stack(level = 1)
+              .sort_index(level=[1,0]))
+    
+    #Group by carriers if not regionalized
+    if not regionalized:
+       supply = supply.groupby(level=0,axis=0).sum()
+       
+        
     supply = supply.groupby(rename_techs_tyndp, axis=1).sum()
 
     both = supply.columns[(supply < 0.0).any() & (supply > 0.0).any()]
@@ -1046,8 +1062,9 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
     if len(to_drop) != 0:
         logger.info(f"Dropping {to_drop.tolist()} from supply")
         supply.drop(columns=to_drop, inplace=True)
-
-    supply.index.name = None
+    
+    if not(return_data):
+        supply.index.name = None
 
     supply = supply / 1e3
 
@@ -1093,7 +1110,13 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
     supply = supply.groupby(supply.columns, axis=1).sum()
     if load_only:
         new_columns = (supply.std()/supply.mean()).sort_values().index
-    supply.index = pd.to_datetime(pd.DatetimeIndex(supply.index.values).strftime(f'{year}-%m-%d-%H'))
+    
+    
+    if return_data:
+        if load_only:
+            return supply[new_columns]
+        return supply
+    
     fig, ax = plt.subplots()
     fig.set_size_inches((8, 5))
 
