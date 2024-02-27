@@ -14,6 +14,8 @@ import matplotlib as mpl
 import pandas as pd
 from matplotlib import pyplot as plt
 from yaml import safe_load
+import plotly.express as px
+from plotly.offline import plot
 
 from scripts.graph_extraction_utils import CLIP_VALUE_TWH
 from scripts.graph_extraction_utils import TRANSMISSION_RENAMER
@@ -251,23 +253,6 @@ def extract_res_statistics(n):
         df.append(res)
 
     return pd.concat(df)
-
-def extract_production_profiles(config, n, regionalized = False):
-    production_profiles = []
-    for carrier in config['carriers_to_plot']:
-        df = []
-        for y, ni in n.items():            
-            df.append(plot_series(ni, carrier=carrier, name=carrier, year=str(y),
-                                   return_data = True, load_only = True, regionalized=regionalized))
-            print(f'Extracted {carrier} for year {y}')
-        df = pd.concat(df)
-        df['carrier'] = carrier
-        production_profiles.append(df)
-    production_profiles = (pd.concat(production_profiles)
-                           .reset_index()
-                           .set_index(["carrier","snapshots","country"] if regionalized else ["carrier","snapshots"])
-                           )
-    return production_profiles
 
 
 def extract_country_capacities(config, n):
@@ -619,30 +604,70 @@ def extract_graphs(config, n, color_shift=None):
     return n_sto, n_h2
 
 
-def extract_series(config, n):
+def extract_series(config, n, carriers = ['electricity']):
     with plt.style.context(["ggplot"]):
-        with open(Path(config["path"]["analysis_path"], 'results/configs/config.snakemake.yaml'), 'r') as f:
-            df = safe_load(f)["plotting"]
-            plots = {}
+        df = config["plotting"]
+        plots = {}
+        #TODO : add multiple carriers
+        for carrier in carriers:
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
-                    plots[y] = plot_series(ni, carrier="electricity", name="electricity", year=str(y),
-                                           load_only=True, colors=df["tech_colors"],
+                    plots[y] = plot_series(ni, carrier=carrier, name=carrier, year=str(y),
+                                           load_only=True, colors=df["tech_colors"], 
                                            path=Path(config["csvs"], f"series_AC_{y}.png"), save=False)
+    return plots
+
+
+def extract_series_px(config, data):
+    
+    plots = {}
+    prod_profiles = data.copy().reset_index()
+    prod_profiles.snapshots = prod_profiles.snapshots.astype(str)
+    for y in config['years_str']:
+        #TODO : add other carriers for outputs
+        df = (prod_profiles.query("carrier == 'electricity'")
+              .query("snapshots.str.contains(@y)")
+              .dropna(axis=1,how='all')
+              .groupby('snapshots')
+              .sum(numeric_only=True))
+    
+        fig = px.area(df, color_discrete_map = config["plotting"]['tech_colors'])
+        fig.update_traces(line=dict(width=0.1))
+        fig.update_layout(legend_traceorder="reversed")
+        fig.update_yaxes(title_text='Consumption [GW]')
+        fig.update_xaxes(title_text='Timesteps')
+        fig.update_layout(legend_title_text = 'Technologies')
+        plots[y] = fig
     return plots
 
 
 def extract_plot_capacities(config, n):
     with plt.style.context(["ggplot"]):
-        with open(Path(config["path"]["analysis_path"], 'results/configs/config.snakemake.yaml'), 'r') as f:
-            df = safe_load(f)["plotting"]
-            plots = {}
-            for y, ni in n.items():
-                with pd.option_context('mode.chained_assignment', None):
-                    plots[y] = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
-                                             bus_size_factor=1e5, path=Path(config["csvs"], f"capacities_{y}.png"),
-                                             run_from_rule=False, transmission=True, save=False)
+        df = config["plotting"]
+        plots = {}
+        for y, ni in n.items():
+            with pd.option_context('mode.chained_assignment', None):
+                plots[y] = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
+                                         bus_size_factor=1e5, path=Path(config["csvs"], f"capacities_{y}.png"),
+                                         run_from_rule=False, transmission=True, save=False)
     return plots
+
+
+def extract_production_profiles(config, n, regionalized = False):
+    production_profiles = []
+    for carrier in config['carriers_to_plot']:
+        df = []
+        for y, ni in n.items():            
+            df.append(plot_series(ni, carrier=carrier, name=carrier, year=str(y),
+                                   return_data = True, load_only = True, regionalized=regionalized))
+        df = pd.concat(df)
+        df['carrier'] = carrier
+        production_profiles.append(df)
+    production_profiles = (pd.concat(production_profiles)
+                           .reset_index()
+                           .set_index(["carrier","snapshots","country"] if regionalized else ["carrier","snapshots"])
+                           )
+    return production_profiles
 
 
 def export_csvs_figures(csvs, outputs, figures):
@@ -650,7 +675,10 @@ def export_csvs_figures(csvs, outputs, figures):
 
     for f_name, f in figures.items():
         for y, plot in f.items():
-            plot.savefig(Path(csvs, f"{f_name}_{y}.png"), transparent=True)
+            if 'px' in f_name:
+                plot.write_html(Path(csvs, f"{f_name}_{y}.html"))
+            else:
+                plot.savefig(Path(csvs, f"{f_name}_{y}.png"), transparent=True)
 
     for o_name, o in outputs.items():
         o.to_csv(Path(csvs, f"{o_name}.csv"))
@@ -665,6 +693,7 @@ def transform_data(config, n, n_ext, color_shift=None):
 
     # DataFrames to extract
     prod_profiles = extract_production_profiles(config,n)
+    series_production_px = extract_series_px(config, prod_profiles)
     n_loads = extract_loads(n)
     nodal_oil_load = extract_nodal_oil_load(config, nhours=n_ext['hist'].snapshot_weightings.generators.sum())
     n_res_pot = extract_res_potential(n)
@@ -685,7 +714,8 @@ def transform_data(config, n, n_ext, color_shift=None):
 
     # Figures to extract
     n_sto, n_h2 = extract_graphs(config, n, color_shift)
-    series_consumption = extract_series(config, n)
+    series_production = extract_series(config, n)
+    series_production_px = extract_series_px(config, prod_profiles) #Needs regionalized = False for prod_profiles
     map_capacities = extract_plot_capacities(config, n)
 
     # Define outputs and export them
@@ -719,7 +749,8 @@ def transform_data(config, n, n_ext, color_shift=None):
     figures = {
         'storage_unit': n_sto,
         'h2_production': n_h2,
-        'series_consumption': series_consumption,
+        'series_production': series_production,
+        'series_production_px' : series_production_px,
         'map_capacities': map_capacities
     }
 
