@@ -1047,7 +1047,7 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
     supply = pd.concat((supply, negative_supply), axis=1)
     
     if load_only:
-        supply = supply.loc[:,~(supply<0).all(axis=0)]
+        supply = supply.loc[:,~(supply<=0).all(axis=0)]
 
     # 14-21.2 for flaute
     # 19-26.1 for flaute
