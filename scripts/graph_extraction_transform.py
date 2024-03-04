@@ -187,23 +187,27 @@ def extract_res_potential(n):
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
 
     for y, ni in n.items():
-        df = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
+        gens = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
+        su = ni.storage_units[["p_nom_max", "p_nom_opt"]].reset_index()
+        su = su.rename(columns={'StorageUnit':'Generator'}) # renaming the columns allows StorageUnits to be treated the same as Generators
+        df = pd.concat([su, gens])
+        
         df[["region", "carrier", "build_year"]] = df["Generator"].str.extract(rx)
         df["carrier"] = df["carrier"].str.rstrip("-").replace(RENAMER)
         df["planning horizon"] = y
-        df = df[df["carrier"].isin(["onwind", "offwind", "solar"])]
+        df = df[df["carrier"].isin(["onwind", "offwind", "solar", "ror", "hydro", "PHS"])]
         dfx.append(
             df.groupby(["planning horizon", "carrier", "build_year", "region"]).sum(numeric_only=True) / 1e3
-        )  # GW
-
+        )  # GW      
+        
     dfx = pd.concat(dfx)
     df_potential = pd.concat([
         (
             dfx.loc[
                 dfx["p_nom_opt"].index.get_level_values("build_year") <
-                dfx["p_nom_opt"].index.get_level_values("planning horizon").astype(str)
-                , "p_nom_opt"]
-            .groupby(["planning horizon", "carrier", "region"]).sum()
+                dfx["p_nom_opt"].index.get_level_values("planning horizon").astype(str) # selects all rows whose build_year index has a smaller value than the planning_horizon index
+                , "p_nom_opt"] # if the year of construction is before planning horizon, this means that the generator has already been installed. However, what was installed = p_nom_opt
+            .groupby(["planning horizon", "carrier", "region"]).sum() # all the lines that have the sames indexes ("planning horizon", "carrier", "region") but a different 'build_year' will be summed based on p_nom_opt                                                   
         ),
         (
             dfx.loc[
@@ -214,7 +218,7 @@ def extract_res_potential(n):
         )
     ], axis=1)
 
-    df_potential["potential"] = df_potential["p_nom_max"] + df_potential["p_nom_opt"].fillna(0)
+    df_potential["potential"] = df_potential["p_nom_max"].fillna(0) + df_potential["p_nom_opt"].fillna(0) # potential = what could have been installed (p_nom_opt) + what has been installed (p_nom_opt)
     df_potential = (
         df_potential.reset_index()
         .pivot(index=["carrier", "region"], columns="planning horizon", values="potential")
