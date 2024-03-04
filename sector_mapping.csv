@@ -7,7 +7,8 @@ AC,generators,ror,Hydroelectricity
 AC,generators,solar,Solar
 AC,lines,AC0,
 AC,lines,AC1,
-AC,links,battery discharger1,
+AC,links,battery charger0,Battery charging
+AC,links,battery discharger1,Battery
 AC,links,CCGT1,Gas
 AC,links,coal1,Coal/Lignite
 AC,links,DAC2,DAC
@@ -168,7 +169,7 @@ lignite,stores,lignite,
 low voltage,generators,solar rooftop,Solar
 low voltage,links,BEV charger0,Transport
 low voltage,links,electricity distribution grid1,
-low voltage,links,home battery charger0,Battery
+low voltage,links,home battery charger0,Battery charging
 low voltage,links,home battery discharger1,Battery
 low voltage,links,residential rural ground heat pump0,Heat
 low voltage,links,residential rural micro gas CHP1,CHP
@@ -220,8 +221,8 @@ residential rural heat,links,residential rural ground heat pump1,Heat Pump
 residential rural heat,links,residential rural micro gas CHP2,Micro Gas CHP
 residential rural heat,links,residential rural oil boiler1,Oil Boiler
 residential rural heat,links,residential rural resistive heater1,Resistive heater
-residential rural heat,links,residential rural water tanks charger0,
-residential rural heat,links,residential rural water tanks discharger1,
+residential rural heat,links,residential rural water tanks charger0,Storage charging
+residential rural heat,links,residential rural water tanks discharger1,Storage 
 residential rural heat,loads,residential rural heat,Heat
 residential rural water tanks,links,residential rural water tanks charger1,
 residential rural water tanks,links,residential rural water tanks discharger0,
@@ -233,8 +234,8 @@ residential urban decentral heat,links,residential urban decentral gas boiler1,G
 residential urban decentral heat,links,residential urban decentral micro gas CHP2,Micro Gas CHP
 residential urban decentral heat,links,residential urban decentral oil boiler1,Oil Boiler
 residential urban decentral heat,links,residential urban decentral resistive heater1,Resistive heater
-residential urban decentral heat,links,residential urban decentral water tanks charger0,
-residential urban decentral heat,links,residential urban decentral water tanks discharger1,
+residential urban decentral heat,links,residential urban decentral water tanks charger0,Storage charging
+residential urban decentral heat,links,residential urban decentral water tanks discharger1,Storage 
 residential urban decentral heat,loads,residential urban decentral heat,Heat
 residential urban decentral water tanks,links,residential urban decentral water tanks charger1,
 residential urban decentral water tanks,links,residential urban decentral water tanks discharger0,
@@ -246,8 +247,8 @@ services rural heat,links,services rural ground heat pump1,Heat Pump
 services rural heat,links,services rural micro gas CHP2,Micro Gas CHP
 services rural heat,links,services rural oil boiler1,Oil Boiler
 services rural heat,links,services rural resistive heater1,Resistive heater
-services rural heat,links,services rural water tanks charger0,
-services rural heat,links,services rural water tanks discharger1,
+services rural heat,links,services rural water tanks charger0,Storage charging
+services rural heat,links,services rural water tanks discharger1,Storage 
 services rural heat,loads,agriculture heat,Agriculture
 services rural heat,loads,services rural heat,Services
 services rural water tanks,links,services rural water tanks charger1,
@@ -261,8 +262,8 @@ services urban decentral heat,links,services urban decentral gas boiler1,Gas Boi
 services urban decentral heat,links,services urban decentral micro gas CHP2,Micro Gas CHP
 services urban decentral heat,links,services urban decentral oil boiler1,Oil Boiler
 services urban decentral heat,links,services urban decentral resistive heater1,Resistive heater
-services urban decentral heat,links,services urban decentral water tanks charger0,
-services urban decentral heat,links,services urban decentral water tanks discharger1,
+services urban decentral heat,links,services urban decentral water tanks charger0,Storage charging
+services urban decentral heat,links,services urban decentral water tanks discharger1,Storage 
 services urban decentral heat,loads,services urban decentral heat,Heat
 services urban decentral water tanks,links,services urban decentral water tanks charger1,
 services urban decentral water tanks,links,services urban decentral water tanks discharger0,
@@ -275,8 +276,8 @@ solid biomass,links,services rural biomass boiler0,Heat
 solid biomass,links,services urban decentral biomass boiler0,Heat
 solid biomass,links,solid biomass for industry CC0,Industry
 solid biomass,links,solid biomass for industry0,Industry
-solid biomass,links,solid biomass transport0,Transport
-solid biomass,links,solid biomass transport1,Transport
+solid biomass,links,solid biomass transport0,
+solid biomass,links,solid biomass transport1,
 solid biomass,links,solid biomass0,
 solid biomass,links,urban central solid biomass CHP CC0,CHP
 solid biomass,links,urban central solid biomass CHP0,CHP
@@ -301,8 +302,8 @@ urban central heat,links,urban central oil boiler1,Oil Boiler
 urban central heat,links,urban central resistive heater1,Resistive heater
 urban central heat,links,urban central solid biomass CHP CC2,Biomass CHP CC
 urban central heat,links,urban central solid biomass CHP2,Biomass CHP
-urban central heat,links,urban central water tanks charger0,
-urban central heat,links,urban central water tanks discharger1,
+urban central heat,links,urban central water tanks charger0,Storage charging
+urban central heat,links,urban central water tanks discharger1,Storage 
 urban central heat,loads,low-temperature heat for industry,Industry
 urban central heat,loads,urban central heat,Heat
 urban central water tanks,links,urban central water tanks charger1,
