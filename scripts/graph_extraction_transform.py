@@ -728,6 +728,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     series_production = extract_series(config, n, supply = True)
     series_production_px = extract_series_px(config, prod_profiles) #Needs regionalized = False for prod_profiles
     series_consumption = extract_series(config, n, load = True)
+    series_consumption_px = extract_series_px(config, load_profiles) #Needs regionalized = False for load_profiles
     map_capacities = extract_plot_capacities(config, n)
 
     # Define outputs and export them
