@@ -37,7 +37,7 @@ def get_profiles():
 years = ['2030', '2040', '2050']
 data = get_profiles()
 
-carrier = st.selectbox('Choose your carrier:', data["carrier"].unique())
+carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=3)
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
 year = st.selectbox('Choose the year:', years)
