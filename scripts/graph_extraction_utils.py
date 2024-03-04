@@ -14,13 +14,23 @@ import pandas as pd
 import yaml
 
 CLIP_VALUE_TWH = 1e-1  # TWh
+CLIP_VALUE_ANNUAL_MWH = 1e3  #MWh
 CLIP_VALUE_GW = 1e-3  # GW
 RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"]
 HEAT_RENAMER = {"residential rural heat": "dec_heat", "services rural heat": "dec_heat",
                 "residential urban decentral heat": "dec_heat", "services urban decentral heat": "dec_heat",
                 "urban central heat": "cent_heat"}
+ELEC_RENAMER = {'AC' : 'elec', 'DC' : 'elec', 'low voltage' : 'elec'}
 TRANSMISSION_RENAMER = {"AC" : "elec", "DC" : "elec" , "H2 pipeline" : "H2",
                         "H2 pipeline retrofitted" : "H2", "gas pipeline" : "gas", "gas pipeline new" : "gas"}
+PREFIX_TO_REMOVE = [
+    "residential ",
+    "services ",
+    "urban ",
+    "rural ",
+    "central ",
+    "decentral ",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +70,13 @@ def load_config(config_file, analysis_path, n_path, dir_export):
 
     return config
 
+
+
+def remove_prefixes(label):
+    for ptr in PREFIX_TO_REMOVE:
+        if label[: len(ptr)] == ptr:
+            label = label[len(ptr) :]
+    return label
 
 def query_imp_exp(df, carriers, countries, year, imports_exports) : 
     if countries is not None:

@@ -20,7 +20,10 @@ from plotly.offline import plot
 from scripts.graph_extraction_utils import CLIP_VALUE_TWH
 from scripts.graph_extraction_utils import TRANSMISSION_RENAMER
 from scripts.graph_extraction_utils import RES
+from scripts.graph_extraction_utils import HEAT_RENAMER
+from scripts.graph_extraction_utils import ELEC_RENAMER
 from scripts.graph_extraction_utils import bus_mapper
+from scripts.graph_extraction_utils import remove_prefixes
 from scripts.make_summary import calculate_nodal_capacities
 from scripts.make_summary import calculate_nodal_supply_energy
 from scripts.plot_network import plot_capacity
