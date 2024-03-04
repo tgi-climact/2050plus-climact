@@ -13,15 +13,20 @@ scenario = st_side_bar()
 
 st.title("Loads per carrier")
 
-df = (
-    pd.read_excel(
-        Path(network_path,
-             scenario_dict[scenario]["path"],
-             "graph_extraction_st.xlsx"),
-        sheet_name="supply_energy_df",
-        header=0
+@st.cache_data
+def get_data():
+    df = (
+        pd.read_excel(
+            Path(network_path,
+                 scenario_dict[scenario]["path"],
+                 "graph_extraction_st.xlsx"),
+            sheet_name="supply_energy_df",
+            header=0
+        )
     )
-)
+    return df
+
+df = get_data()
 
 all = "EU27 + TYNDP"
 country = st.selectbox('Choose your country:', [all] + list(df["node"].unique()))

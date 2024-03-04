@@ -16,7 +16,7 @@ st.title("Consumption profiles per carrier")
 
 
 @st.cache_data
-def get_profiles():
+def get_data():
     return (
         pd.read_excel(
             Path(network_path,
@@ -35,7 +35,7 @@ def get_profiles():
 # - eventually per country
 # - eventuelly per subtype of supply
 years = ['2030', '2040', '2050']
-data = get_profiles()
+data = get_data()
 
 carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=3)
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
