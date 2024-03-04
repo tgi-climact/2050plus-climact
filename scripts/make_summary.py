@@ -424,13 +424,23 @@ def calculate_supply_energy(n, label, supply_energy):
     return supply_energy
 
 
-def calculate_nodal_supply_energy(n, label, nodal_supply_energy):
+def calculate_nodal_supply_energy(_n, label, nodal_supply_energy,
+                                  time_aggregate = True, country_aggregate= True,
+                                  carriers = None, carriers_renamer = None, fun = None):
     """
     Calculate the total energy supply/consumption of each component at the buses
     aggregated by carrier and node.
     """
-
+    n = _n.copy()
+    
     bus_carriers = n.buses.carrier.unique()
+    if carriers_renamer is not None:
+        n.buses.carrier = n.buses.carrier.map(lambda x : carriers_renamer.get(x,x))
+    if carriers is not None:
+        bus_carriers = carriers
+    else:
+        bus_carriers = n.buses.carrier.unique()
+        # bus_carriers = list(set(carriers.values()))
 
     for i in bus_carriers:
         bus_map = n.buses.carrier == i
@@ -443,22 +453,32 @@ def calculate_nodal_supply_energy(n, label, nodal_supply_energy):
                 continue
 
             s = (
-                pd.concat([
-                    (
                         c.pnl.p[items]
                         .multiply(n.snapshot_weightings.generators, axis=0)
-                        .sum()
                         .multiply(c.df.loc[items, "sign"])
-                    ),
-                    c.df.loc[items][["bus", "carrier"]]
-                ], axis=1)
-                .groupby(by=["bus", "carrier"])
-                .sum()[0]
-            )
-            s = pd.concat([s], keys=[c.list_name])
-            s = pd.concat([s], keys=[i])
+                    )
+            s.columns= (pd.MultiIndex
+                               .from_frame(c.df.loc[items][["bus", "carrier"]])
+                               .rename({'carrier' : 'technology'})
+                               )            
+            s = pd.concat([s.T], keys=[c.list_name], names = ["components"])
+            s = pd.concat([s], keys=[i], names = ["carrier"])
+            s.rename_axis('snapshot',axis=1,inplace=True)
+            
+            if time_aggregate:
+                s = (s.groupby(['bus', 'carrier','components','technology'])
+                     .sum()
+                     .sum(axis=1))
+            else:
+                if fun is not None:
+                    s.reset_index('technology',inplace=True)
+                    s.technology = s.technology.map(fun)
+                    s = s.groupby(['bus', 'carrier','components','technology']).sum()
+                if country_aggregate: 
+                    s = s.groupby(['carrier','components','technology']).sum()
+                s = s.stack()
 
-            nodal_supply_energy = nodal_supply_energy.reindex(s.index.union(nodal_supply_energy.index))
+            nodal_supply_energy = nodal_supply_energy.reindex(s.index.union(nodal_supply_energy.index,sort=False))
             nodal_supply_energy.loc[s.index, label] = s
 
         for c in n.iterate_components(n.branch_components):
@@ -469,28 +489,39 @@ def calculate_nodal_supply_energy(n, label, nodal_supply_energy):
                     continue
 
                 s = (
-                    pd.concat([
-                        (
                             (-1) * c.pnl["p" + end][items]
                             .multiply(n.snapshot_weightings.generators, axis=0)
-                            .sum()
-                        ),
-                        c.df.loc[items][["location", "carrier"]]
-                    ], axis=1)
-                    .groupby(by=["location", "carrier"])
-                    .sum()[0]
+                        )
+                s = (
+                    pd.concat([s.T,c.df.loc[items][["location", "carrier"]]], axis=1)
+                .groupby(by=["location", "carrier"])
+                .sum()
                 )
-
-                s.index = s.index.map(lambda x: (x[0], x[1] + end))
-                s = pd.concat([s], keys=[c.list_name])
-                s = pd.concat([s], keys=[i])
+                s.index = s.index.map(lambda x: (x[0], x[1] + end)).rename({'carrier':'technology'})
+                s = pd.concat([s], keys=[c.list_name], names = ["components"])
+                s = pd.concat([s], keys=[i], names = ["carrier"])
+                s.rename_axis('snapshot',axis=1,inplace=True)
+                
+                if time_aggregate:
+                    s = (s.groupby(['location', 'carrier', 'components', 'technology'])
+                         .sum()
+                         .sum(axis=1))
+                else:
+                    if fun is not None:
+                        s.reset_index('technology',inplace=True)
+                        s.technology = s.technology.map(fun)
+                        s = s.groupby(['location', 'carrier', 'components', 'technology']).sum()
+                    if country_aggregate: 
+                        s = s.groupby(['carrier','components','technology']).sum()
+                    s = s.stack()              
 
                 nodal_supply_energy = nodal_supply_energy.reindex(
-                    s.index.union(nodal_supply_energy.index)
+                    s.index.union(nodal_supply_energy.index,sort=False)
                 )
 
                 nodal_supply_energy.loc[s.index, label] = s
-
+        if country_aggregate:
+            print(f"Did carrier {i} for year {label[-1]}")
     return nodal_supply_energy
 
 

@@ -463,8 +463,8 @@ def extract_nodal_supply_energy(config, n):
     columns = pd.MultiIndex.from_tuples(labels.values(), names=["cluster", "ll", "opt", "planning_horizon"])
     df = pd.DataFrame(columns=columns, dtype=float)
     for y, ni in n.items():
-        df = calculate_nodal_supply_energy(ni, label=labels[y], nodal_supply_energy=df)
-    idx = ["carrier", "component", "node", "item"]
+        df = calculate_nodal_supply_energy(ni, label=labels[y], nodal_supply_energy=df, country_aggregate=False)
+    idx = ["node", "carrier", "component", "item"]
     df.index.names = idx
     df.columns = df.columns.get_level_values(3)
 
