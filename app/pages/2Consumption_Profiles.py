@@ -12,7 +12,7 @@ from app.st_common import CLIP_VALUE_TWH
 st_page_config(layout="wide")
 scenario = st_side_bar()
 
-st.title("Production profiles per carrier")
+st.title("Consumption profiles per carrier")
 
 @st.cache_data
 def get_df():
@@ -21,7 +21,7 @@ def get_df():
             Path(network_path,
                  scenario_dict[scenario]["path"],
                  "graph_extraction_st.xlsx"),
-            sheet_name="supply_temporal",
+            sheet_name="load_temporal",
             header=0
         )
     )
@@ -34,6 +34,7 @@ def get_df():
 # - eventuelly per subtype of supply
 years = ['2030','2040','2050']
 data = get_df()
+
 carrier = st.selectbox('Choose your carrier:', data["carrier"].unique())
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
@@ -45,11 +46,11 @@ df = df.loc[:,df.sum()/1e3>CLIP_VALUE_TWH]
 
 fig = px.area(
     df,
-    title=f"System production profile for {carrier} [GW]",
+    title=f"System consumption profile for {carrier} [GW]",
 )
 fig.update_traces(line=dict(width=0.1))
 fig.update_layout(legend_traceorder="reversed")
-fig.update_yaxes(title_text='Production [GW]')
+fig.update_yaxes(title_text='Consumption [GW]')
 fig.update_xaxes(title_text='Timesteps')
 fig.update_layout(legend_title_text = 'Technologies')
 
@@ -58,13 +59,4 @@ st.plotly_chart(
     , use_container_width=True
 )
 
-df_table = (
-    (df.sum()/1e3
-     *8760/len(df.axes[0]))
-    .rename('Annual production [TWh]')
-    .to_frame()
-    .style
-    .format(precision=2, thousands = ",", decimal = '.')
-    )
-
-st.table(df_table)
+st.table((df.sum()/1e3*3).rename('Annual consumption [TWh]'))
