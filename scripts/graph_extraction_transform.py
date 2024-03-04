@@ -607,7 +607,7 @@ def extract_graphs(config, n, color_shift=None):
     return n_sto, n_h2
 
 
-def extract_series(config, n, carriers = ['electricity']):
+def extract_series(config, n, carriers = ['electricity'], load = False, supply = False):
     with plt.style.context(["ggplot"]):
         df = config["plotting"]
         plots = {}
@@ -616,7 +616,7 @@ def extract_series(config, n, carriers = ['electricity']):
             for y, ni in n.items():
                 with pd.option_context('mode.chained_assignment', None):
                     plots[y] = plot_series(ni, carrier=carrier, name=carrier, year=str(y),
-                                           load_only=True, colors=df["tech_colors"], 
+                                           load_only=load, supply_only = supply, colors=df["tech_colors"], 
                                            path=Path(config["csvs"], f"series_AC_{y}.png"), save=False)
     return plots
 
