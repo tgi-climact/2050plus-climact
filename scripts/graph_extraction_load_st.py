@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-
+import numpy as np
 from scripts.graph_extraction_utils import _load_nodal_oil
 from scripts.graph_extraction_utils import HEAT_RENAMER
 from scripts.graph_extraction_utils import _load_supply_energy

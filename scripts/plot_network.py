@@ -465,6 +465,7 @@ def plot_capacity(
         else:
             fig.savefig(snakemake.output.capacities.replace(".pdf",fig_format), transparent=True, bbox_inches="tight",dpi=300)
     else:
+        fig.tight_layout()
         return fig
 
 def group_pipes(df, drop_direction=False):

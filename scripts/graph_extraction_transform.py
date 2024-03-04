@@ -689,7 +689,7 @@ def export_csvs_figures(csvs, outputs, figures):
 
 
 def transform_data(config, n, n_ext, color_shift=None):
-    logger.info(f"Transforming data")
+    logger.info("Transforming data")
 
     # DataFrames to extract
     prod_profiles = extract_production_profiles(config,n)

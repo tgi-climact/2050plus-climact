@@ -125,7 +125,6 @@ def _load_supply_energy_dico(config, load=True, countries=None):
         else:
             dico[ca] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
 
-    dico_heat = {}
     for heat in ['dec_heat','cent_heat']:
         carriers = [k for k in list(dico.keys()) if HEAT_RENAMER.get(k) == heat]
         df = pd.DataFrame()
