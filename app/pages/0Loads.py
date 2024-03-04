@@ -3,10 +3,10 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from st_common import network_path
-from st_common import scenario_dict
-from st_common import st_page_config
-from st_common import st_side_bar
+from app.st_common import network_path
+from app.st_common import scenario_dict
+from app.st_common import st_page_config
+from app.st_common import st_side_bar
 
 st_page_config(layout="wide")
 scenario = st_side_bar()
@@ -17,7 +17,7 @@ df = (
     pd.read_excel(
         Path(network_path,
              scenario_dict[scenario]["path"],
-             "graph_extraction_st_raw.xlsx"),
+             "graph_extraction_st.xlsx"),
         sheet_name="supply_energy_df",
         header=0
     )
@@ -44,4 +44,4 @@ st.plotly_chart(
     , use_container_width=True
 )
 
-st.table(df)
+st.table(df.style.format(precision=2))

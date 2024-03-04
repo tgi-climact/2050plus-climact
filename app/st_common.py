@@ -16,7 +16,7 @@ scenario_dict = {
         "fn": "elec_s181_37m_lv3.0__3H-I-T-H-B-A-CCL_YEAR.nc",
     }
 }
-
+CLIP_VALUE_TWH = 1e-1
 
 def st_page_config(layout=None):
     if layout is None:
