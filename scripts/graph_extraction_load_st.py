@@ -51,7 +51,7 @@ def load_supply_energy_df(config, load=True):
             #     df_net_imp = (df_imp[config["scenario"]["planning_horizons"]] - df_exp[
             #         config["scenario"]["planning_horizons"]]).sum()
             #     df = pd.concat([df, pd.DataFrame(['Net Imports'] + df_net_imp.values.tolist(), index=df.columns).T])
-            df.drop(df.query('sector in ["V2G", "Battery", "Hydroelectricity"]').index, inplace=True)
+            df.drop(df.query('sector in ["V2G", "Battery charging", "Hydroelectricity"]').index, inplace=True)
             df["carrier"] = ca
             dfl.append(df)
         elif ca == "oil":
@@ -77,6 +77,13 @@ def load_imports_exports(config):
     
     return pd.read_csv(Path(config["csvs"], "imports_exports.csv"))
 
+def load_load_temporal(config):
+    load = _load_supply_energy(config, load=True, aggregate = True, temporal= True)
+    return load
+
+def load_supply_temporal(config):
+    supply = _load_supply_energy(config, load=False, aggregate = True, temporal= True)
+    return  supply
 
 def load_generation_profiles(config):
     
@@ -87,6 +94,8 @@ def load_data_st(config):
     logger.info(f"Exporting data to streamlit")
 
     outputs = [
+        "load_temporal",
+        "supply_temporal",
         "supply_energy_df",
         "imports_exports",
         "generation_profiles"
