@@ -106,7 +106,7 @@ def bus_mapper(x, n, column=None):
         return np.nan
 
 
-def _load_supply_energy(config, load=True, carriers=None, countries=None, aggregate=True):
+def _load_supply_energy(config, load=True, carriers=None, countries=None, aggregate=True, temporal=False):
     """
     Load nodal supply energy data and aggregate on carrier and sector, given some conditions.
     :param load: If True, keep only load data (negatives values)
@@ -115,8 +115,11 @@ def _load_supply_energy(config, load=True, carriers=None, countries=None, aggreg
     :param aggregate: If specified, determine if data are aggregated
     :return:
     """
+    file = "supply_energy_sectors.csv"
+    if temporal:
+        file = 'temporal_' + file
     df = (
-        pd.read_csv(Path(config["csvs"], "supply_energy_sectors.csv"), header=0)
+        pd.read_csv(Path(config["csvs"],file) , header=0)
     )
 
     def get_load_supply(x):
@@ -134,17 +137,40 @@ def _load_supply_energy(config, load=True, carriers=None, countries=None, aggreg
         df = df.query("node in @countries")
     if aggregate:
         idx = ["carrier", "sector"]
-        df = (
-            df.groupby(by=idx).sum().reset_index()
-            .reindex(columns=config["excel_columns"]["future_years_sector"])
-        )
+        if temporal:
+            idx.append('snapshot')
+            df = (
+                df.groupby(by=idx).sum().reset_index()
+                .reindex(columns=config["excel_columns"]["future_years_sector"]+['snapshot'])
+            )
+        else:
+            df = (
+                df.groupby(by=idx).sum().reset_index()
+                .reindex(columns=config["excel_columns"]["future_years_sector"])
+            )
+
     else:
         idx = ["carrier", "sector", "node"]
-        df = df.reindex(columns=["carrier", "sector", "node", "2030", "2040", "2050"])
+        if temporal:
+            idx.append('snapshot')
+            idx.remove('node')
+        df = ( 
+            df.groupby(by=idx).sum().reset_index()
+            .reindex(columns=config["excel_columns"]["future_years_sector"]+['node']) 
+        ) 
 
-    df = df.set_index(idx)
-    df = df[df.sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])]
-    df = df.reset_index()
+    if temporal:
+        idx.remove('snapshot')
+        index = (df
+                .groupby(idx)
+                .sum(numeric_only=True)
+                .sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])
+                )
+        df = df.set_index(idx).loc[index].reset_index()
+    else:
+        df = df.set_index(idx)
+        df = df[df.sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])]
+        df = df.reset_index()
 
     return df
 
