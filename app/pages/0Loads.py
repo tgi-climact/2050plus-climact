@@ -3,10 +3,10 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from app.st_common import network_path
-from app.st_common import scenario_dict
-from app.st_common import st_page_config
-from app.st_common import st_side_bar
+from st_common import network_path
+from st_common import scenario_dict
+from st_common import st_page_config
+from st_common import st_side_bar
 
 st_page_config(layout="wide")
 scenario = st_side_bar()

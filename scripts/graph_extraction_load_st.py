@@ -11,9 +11,9 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
-from scripts.graph_extraction_utils import _load_nodal_oil
+
 from scripts.graph_extraction_utils import HEAT_RENAMER
+from scripts.graph_extraction_utils import _load_nodal_oil
 from scripts.graph_extraction_utils import _load_supply_energy
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ def load_supply_energy_df(config, load=True):
     df = pd.concat(dfl)
     return df
 
+
 def load_imports_exports(config):
     """
     This function loads the imports and exports for all countries, carriers and years
@@ -74,22 +75,25 @@ def load_imports_exports(config):
     at streamlit level.
 
     """
-    
+
     return pd.read_csv(Path(config["csvs"], "imports_exports.csv"))
 
+
 def load_load_temporal(config):
-    load = _load_supply_energy(config, load=True, aggregate = True, temporal= True)
+    load = _load_supply_energy(config, load=True, aggregate=True, temporal=True)
     return load
 
+
 def load_supply_temporal(config):
-    supply = _load_supply_energy(config, load=False, aggregate = True, temporal= True)
-    return  supply
+    supply = _load_supply_energy(config, load=False, aggregate=True, temporal=True)
+    return supply
+
 
 def load_generation_profiles(config):
-    
-    return pd.read_csv(Path(config["csvs"], "generation_profiles.csv")) 
+    return pd.read_csv(Path(config["csvs"], "generation_profiles.csv"))
 
-#%% Load main
+
+# %% Load main
 def load_data_st(config):
     logger.info(f"Exporting data to streamlit")
 

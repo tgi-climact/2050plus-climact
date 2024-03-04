@@ -14,15 +14,15 @@ import pandas as pd
 import yaml
 
 CLIP_VALUE_TWH = 1e-1  # TWh
-CLIP_VALUE_ANNUAL_MWH = 1e3  #MWh
+CLIP_VALUE_ANNUAL_MWH = 1e3  # MWh
 CLIP_VALUE_GW = 1e-3  # GW
 RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"]
 HEAT_RENAMER = {"residential rural heat": "dec_heat", "services rural heat": "dec_heat",
                 "residential urban decentral heat": "dec_heat", "services urban decentral heat": "dec_heat",
                 "urban central heat": "cent_heat"}
-ELEC_RENAMER = {'AC' : 'elec', 'DC' : 'elec', 'low voltage' : 'elec'}
-TRANSMISSION_RENAMER = {"AC" : "elec", "DC" : "elec" , "H2 pipeline" : "H2",
-                        "H2 pipeline retrofitted" : "H2", "gas pipeline" : "gas", "gas pipeline new" : "gas"}
+ELEC_RENAMER = {'AC': 'elec', 'DC': 'elec', 'low voltage': 'elec'}
+TRANSMISSION_RENAMER = {"AC": "elec", "DC": "elec", "H2 pipeline": "H2",
+                        "H2 pipeline retrofitted": "H2", "gas pipeline": "gas", "gas pipeline new": "gas"}
 PREFIX_TO_REMOVE = [
     "residential ",
     "services ",
@@ -71,30 +71,30 @@ def load_config(config_file, analysis_path, n_path, dir_export):
     return config
 
 
-
 def remove_prefixes(label):
     for ptr in PREFIX_TO_REMOVE:
         if label[: len(ptr)] == ptr:
-            label = label[len(ptr) :]
+            label = label[len(ptr):]
     return label
 
-def query_imp_exp(df, carriers, countries, year, imports_exports) : 
+
+def query_imp_exp(df, carriers, countries, year, imports_exports):
     if countries is not None:
         country_list = df.columns.intersection(countries)
     else:
         country_list = df.columns.intersection(df.countries.unique())
-       
+
     df_imp_exp = (
-          df.query("carriers == @carriers")
-            .query("year == @year")
-            .query("imports_exports == @imports_exports")
-            .drop(["carriers","year","imports_exports"], axis=1)
-            .set_index('countries')
-            )
+        df.query("carriers == @carriers")
+        .query("year == @year")
+        .query("imports_exports == @imports_exports")
+        .drop(["carriers", "year", "imports_exports"], axis=1)
+        .set_index('countries')
+    )
     if countries is not None:
         df_imp_exp = (df_imp_exp
-                .loc[df_imp_exp.index.symmetric_difference(countries),country_list]
-                )
+        .loc[df_imp_exp.index.symmetric_difference(countries), country_list]
+        )
     df_imp_exp = df_imp_exp.sum(axis=1)
     return df_imp_exp
 
@@ -119,7 +119,7 @@ def _load_supply_energy(config, load=True, carriers=None, countries=None, aggreg
     if temporal:
         file = 'temporal_' + file
     df = (
-        pd.read_csv(Path(config["csvs"],file) , header=0)
+        pd.read_csv(Path(config["csvs"], file), header=0)
     )
 
     def get_load_supply(x):
@@ -141,7 +141,7 @@ def _load_supply_energy(config, load=True, carriers=None, countries=None, aggreg
             idx.append('snapshot')
             df = (
                 df.groupby(by=idx).sum().reset_index()
-                .reindex(columns=config["excel_columns"]["future_years_sector"]+['snapshot'])
+                .reindex(columns=config["excel_columns"]["future_years_sector"] + ['snapshot'])
             )
         else:
             df = (
@@ -154,18 +154,18 @@ def _load_supply_energy(config, load=True, carriers=None, countries=None, aggreg
         if temporal:
             idx.append('snapshot')
             idx.remove('node')
-        df = ( 
+        df = (
             df.groupby(by=idx).sum().reset_index()
-            .reindex(columns=config["excel_columns"]["future_years_sector"]+['node']) 
-        ) 
+            .reindex(columns=config["excel_columns"]["future_years_sector"] + ['node'])
+        )
 
     if temporal:
         idx.remove('snapshot')
         index = (df
-                .groupby(idx)
-                .sum(numeric_only=True)
-                .sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])
-                )
+                 .groupby(idx)
+                 .sum(numeric_only=True)
+                 .sum(axis=1) >= CLIP_VALUE_TWH * len(config["scenario"]["planning_horizons"])
+                 )
         df = df.set_index(idx).loc[index].reset_index()
     else:
         df = df.set_index(idx)

@@ -30,17 +30,19 @@ def assign_countries(n):
     )
     return
 
+
 def assign_coordinates(n):
-    n.buses.loc[n.buses.query('x == 0 or y == 0').index,['x','y']] = ''
+    n.buses.loc[n.buses.query('x == 0 or y == 0').index, ['x', 'y']] = ''
     n.buses = (
         n.buses.merge(
-            n.buses[(n.buses.location != "EU") & (n.buses.carrier == "AC")][["x","y"]],
+            n.buses[(n.buses.location != "EU") & (n.buses.carrier == "AC")][["x", "y"]],
             how="left", left_on="location", right_index=True, suffixes=("_old", '')
         )
         .fillna({"x": 0, "y": 0})
-        .drop(columns=["x_old","y_old"])
+        .drop(columns=["x_old", "y_old"])
     )
     return
+
 
 def searcher(x, carrier):
     if carrier in x.to_list():
@@ -116,7 +118,7 @@ def extract_data(config):
     assign_carriers(n_bf)
     assign_locations(n_bf)
     assign_coordinates(n_bf)
-        
+
     year_hist = 2026
     n_bf.generators = n_bf.generators.query(f'build_year < {year_hist}')
     n_bf.links = n_bf.links.query(f'build_year < {year_hist}')

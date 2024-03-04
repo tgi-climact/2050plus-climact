@@ -18,6 +18,7 @@ scenario_dict = {
 }
 CLIP_VALUE_TWH = 1e-1
 
+
 def st_page_config(layout=None):
     if layout is None:
         layout = "centered"

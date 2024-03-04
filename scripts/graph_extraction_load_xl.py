@@ -93,7 +93,7 @@ def _load_supply_energy_dico(config, load=True, countries=None):
         .replace({"AC": "electricity", "low voltage": "electricity"})
         .unique()
     )
-    #TODO add h2 and gas imports and exports
+    # TODO add h2 and gas imports and exports
     for ca in supply_energy_carrier:
         # TODO : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ?
         if ca == "electricity":
@@ -125,15 +125,15 @@ def _load_supply_energy_dico(config, load=True, countries=None):
         else:
             dico[ca] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
 
-    for heat in ['dec_heat','cent_heat']:
+    for heat in ['dec_heat', 'cent_heat']:
         carriers = [k for k in list(dico.keys()) if HEAT_RENAMER.get(k) == heat]
         df = pd.DataFrame()
         for d in carriers:
-            df = pd.concat([df,dico[d]])
+            df = pd.concat([df, dico[d]])
             dico.pop(d)
         df = (df.groupby('sector')
-                .agg({c:'sum' if c in config['years_str'] else 'first' for c in df.columns})
-                .drop('carrier',axis=1))
+              .agg({c: 'sum' if c in config['years_str'] else 'first' for c in df.columns})
+              .drop('carrier', axis=1))
         dico[heat] = df
     return dico
 
@@ -152,7 +152,7 @@ def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None
         df_carrier = query_imp_exp(df.copy(), carriers, countries, y, imports_exports)
         imp_exp.append(df_carrier.rename(y))
     imp_exp = pd.concat(imp_exp, axis=1)
-    #TODO treat the display of exports/imports that does not specifically have the same countries displayed
+    # TODO treat the display of exports/imports that does not specifically have the same countries displayed
     return (
         imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
     )

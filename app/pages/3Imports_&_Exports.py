@@ -27,21 +27,19 @@ df = (
 country = st.selectbox('Choose your country:', df["countries"].unique())
 carrier = st.selectbox('Choose your carrier:', df['carriers'].unique())
 year = st.selectbox('Choose your year:', df["year"].unique())
-imports_exports = st.selectbox('Choose if imports or exports',['imports','exports'])
+imports_exports = st.selectbox('Choose if imports or exports', ['imports', 'exports'])
 df_imp_exp = (
-                pd.concat([query_imp_exp(df, carrier, [country], year, 'imports'),
-                           query_imp_exp(df, carrier, [country], year, 'exports')], 
-                axis=1, keys = ['imports','exports'])
-                )
+    pd.concat([query_imp_exp(df, carrier, [country], year, 'imports'),
+               query_imp_exp(df, carrier, [country], year, 'exports')],
+              axis=1, keys=['imports', 'exports'])
+)
 df_imp_exp = (
     df_imp_exp.drop(df_imp_exp.query('imports <= 0 and exports <=0')
-                             .index)
+                    .index)
     .style
-    .format(precision=2, thousands = ",", decimal = '.')
-    )    
-                
+    .format(precision=2, thousands=",", decimal='.')
+)
 
-                        
 df = query_imp_exp(df, carrier, [country], year, imports_exports)
 st.plotly_chart(
     px.bar(
