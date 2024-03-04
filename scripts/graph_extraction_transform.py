@@ -482,6 +482,45 @@ def extract_nodal_supply_energy(config, n):
     return df
 
 
+def extract_temporal_supply_energy(config, n, carriers = None, carriers_renamer = None,
+                                   time_aggregate= True, country_aggregate = False):
+    labels = {y: config["label"][:-1] + (y,) for y in n.keys()}
+    columns = pd.MultiIndex.from_tuples(labels.values(), names=["cluster", "ll", "opt", "planning_horizon"])
+    df = pd.DataFrame(columns=columns, dtype=float)
+    
+    sector_mapping = pd.read_csv(
+        Path(config["path"]["analysis_path"].resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2],
+        header=0).dropna()
+    sector_mapping = sector_mapping.reset_index()
+    sector_mapping['carrier'] = sector_mapping['carrier'].map(lambda x : carriers_renamer.get(x,x))
+    sector_mapping['item'] = sector_mapping['item'].map(remove_prefixes)
+    if carriers is None:
+        carriers = sector_mapping['carrier'].unique()
+    sector_mapping = sector_mapping.groupby(["carrier", "component", "item"]).first()
+
+    for y, ni in n.items():
+        df = calculate_nodal_supply_energy(ni, label=labels[y], nodal_supply_energy=df,
+                                           carriers = carriers, carriers_renamer = carriers_renamer,
+                                           time_aggregate = time_aggregate,
+                                           country_aggregate= country_aggregate, fun = remove_prefixes)
+    df = df*len(ni.snapshots)/8760
+    idx = ["carrier", "component", "item", "snapshot"]
+    if not(country_aggregate):
+        idx.append('node') 
+    df.index.names = idx
+    df.columns = df.columns.get_level_values(3)
+
+    df = df * 1e-3  # GWh
+    # df["units"] = "GWh"
+    
+    if not(country_aggregate):
+        df = df.reset_index()
+        df["node"] = df["node"].map(renamer_to_country)
+        df = df.set_index(idx)
+    
+    df =  df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left").dropna()
+    return df    
+
 def extract_gas_phase_out(n, year):
     dimensions = ["country", "build_year"]
     n_cgt = (
@@ -698,10 +737,11 @@ def export_csvs_figures(csvs, outputs, figures):
 def transform_data(config, n, n_ext, color_shift=None):
     logger.info("Transforming data")
 
-    # DataFrames to extract
-    prod_profiles = extract_production_profiles(config,n)
-    series_production_px = extract_series_px(config, prod_profiles)
-    n_loads = extract_loads(n)
+    carriers_renamer = {}
+    carriers_renamer.update(HEAT_RENAMER)
+    carriers_renamer.update(ELEC_RENAMER)
+    
+
     # # DataFrames to extract
     prod_profiles = extract_profiles(config, n, supply = True)
     load_profiles = extract_profiles(config, n, load = True)
@@ -716,6 +756,12 @@ def transform_data(config, n, n_ext, color_shift=None):
     n_costs = extract_nodal_costs(config)
     marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC', 'H2'])
     nodal_supply_energy = extract_nodal_supply_energy(config, n)
+    temporal_supply_energy = extract_temporal_supply_energy(config, n, carriers_renamer = carriers_renamer,
+                                                          time_aggregate = False, country_aggregate = True)
+    
+    # temporal_res_supply = extract_temporal_supply_energy(config, n, carriers = ['elec', 'solid_biomass'], 
+    #                                               carriers_renamer = carriers_renamer, time_aggregate = False,
+    #                                               country_aggregate = False)
     n_gas_out = extract_gas_phase_out(n, config["scenario"]["planning_horizons"][0])
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
@@ -749,6 +795,7 @@ def transform_data(config, n, n_ext, color_shift=None):
         # energy balance
         'imports_exports': imp_exp,
         'supply_energy_sectors': nodal_supply_energy,
+        'temporal_supply_energy_sectors' : temporal_supply_energy,
         'nodal_oil_load': nodal_oil_load,
 
         # insights
