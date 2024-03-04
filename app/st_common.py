@@ -28,9 +28,9 @@ def st_page_config(layout=None):
         layout=layout,
         initial_sidebar_state="expanded",
         menu_items={
-            "Get Help": "mailto:mty@climact.com",
-            "Report a bug": "mailto:mty@climact.com",
-            "About": "# Experimental Climact carbon footprint app",
+            "Get Help": "mailto:tgi@climact.com",
+            "Report a bug": "mailto:tgi@climact.com",
+            "About": "# Experimental Climact data explorer for PyPSA app",
         },
     )
 

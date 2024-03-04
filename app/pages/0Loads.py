@@ -13,6 +13,7 @@ scenario = st_side_bar()
 
 st.title("Loads per carrier")
 
+
 @st.cache_data
 def get_data():
     df = (
@@ -25,6 +26,7 @@ def get_data():
         )
     )
     return df
+
 
 df = get_data()
 
