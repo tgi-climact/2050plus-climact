@@ -974,12 +974,13 @@ def plot_map_without(network):
     fig.savefig(snakemake.output.today, transparent=True, bbox_inches="tight")
 
 
-def plot_series(network, carrier="AC", name="test", load_only= None, path = None,
+def plot_series(network, carrier="AC", name="test", load_only= False, supply_only = False, path = None,
                 _stop = "-02-01", _start = "-01-01", year = "2013", colors = None,
                 save=True, return_data = False, regionalized=False):
     n = network.copy()
     assign_location(n)
     assign_carriers(n)
+    assert not (load_only and supply_only), "Cannot have both supply-only and load-only modes"
 
     if carrier == "electricity":
         buses = n.buses.query("'AC' in carrier or index.str.contains('low voltage')").index
@@ -1047,8 +1048,11 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
 
     supply = pd.concat((supply, negative_supply), axis=1)
     
-    if load_only:
+    if supply_only:
         supply = supply.loc[:,~(supply<=0).all(axis=0)]
+        
+    if load_only:
+        supply = - supply.loc[:,(supply<=0).all(axis=0)]
 
     # 14-21.2 for flaute
     # 19-26.1 for flaute
@@ -1109,12 +1113,12 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
     )
     
     supply = supply.groupby(supply.columns, axis=1).sum()
-    if load_only:
+    if load_only or supply_only:
         new_columns = (supply.std()/supply.mean()).sort_values().index
     
     
     if return_data:
-        if load_only:
+        if load_only or supply_only:
             return supply[new_columns]
         return supply
     
@@ -1167,8 +1171,8 @@ def plot_series(network, carrier="AC", name="test", load_only= None, path = None
 
     ax.legend(new_handles, new_labels, ncol=3, loc="upper left", frameon=False)
     ax.set_xlim([start, stop])
-    if load_only:
-        ax.set_ylim([supply.sum().min()*1.5/1e3, supply.sum().max()*2/1e3])
+    if load_only or supply_only:
+        ax.set_ylim([supply.sum().min()*2/1e3, supply.sum().max()*2/1e3])
     else:
         ax.set_ylim([-1000, 1900])
     ax.grid(True)
