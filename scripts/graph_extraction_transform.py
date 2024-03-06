@@ -510,8 +510,8 @@ def extract_temporal_supply_energy(config, n, carriers=None, carriers_renamer=No
                                            country_aggregate=country_aggregate, fun=remove_prefixes)
     df = df * len(ni.snapshots) / 8760
     idx = ["carrier", "component", "item", "snapshot"]
-    if not (country_aggregate):
-        idx.append('node')
+    if not(country_aggregate):
+        idx = ['node'] + idx
     df.index.names = idx
     df.columns = df.columns.get_level_values(3)
 
@@ -521,7 +521,10 @@ def extract_temporal_supply_energy(config, n, carriers=None, carriers_renamer=No
     if not (country_aggregate):
         df = df.reset_index()
         df["node"] = df["node"].map(renamer_to_country)
-        df = df.set_index(idx)
+        df = df.loc[(df.groupby(['node', 'carrier', 'component', 'item'])
+                [config["scenario"]["planning_horizons"]]
+                .filter(lambda x : (x.sum(axis=0)>1e2).any())
+        ).index].set_index(idx)
 
     df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left").dropna()
     return df
