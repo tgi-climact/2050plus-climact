@@ -17,6 +17,7 @@ CLIP_VALUE_TWH = 1e-1  # TWh
 CLIP_VALUE_ANNUAL_MWH = 1e3  # MWh
 CLIP_VALUE_GW = 1e-3  # GW
 RES = ["solar", "solar rooftop", "offwind", "offwind-ac", "offwind-dc", "onwind"]
+HYDRO = ['ror', 'hydro']
 HEAT_RENAMER = {"residential rural heat": "dec_heat", "services rural heat": "dec_heat",
                 "residential urban decentral heat": "dec_heat", "services urban decentral heat": "dec_heat",
                 "urban central heat": "cent_heat"}

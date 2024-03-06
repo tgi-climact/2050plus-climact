@@ -18,6 +18,7 @@ from matplotlib import pyplot as plt
 from scripts.graph_extraction_utils import CLIP_VALUE_TWH
 from scripts.graph_extraction_utils import ELEC_RENAMER
 from scripts.graph_extraction_utils import HEAT_RENAMER
+from scripts.graph_extraction_utils import HYDRO
 from scripts.graph_extraction_utils import RES
 from scripts.graph_extraction_utils import TRANSMISSION_RENAMER
 from scripts.graph_extraction_utils import bus_mapper
@@ -88,6 +89,11 @@ RENAMER = {
     "services rural solar thermal": "residential / services solar thermal",
     "services urban decentral solar thermal": "residential / services solar thermal",
     "urban central solar thermal": "residential / services solar thermal",
+    
+    # Solid biomass CHP
+    "urban central solid biomass CHP" : "solid biomass CHP",
+    "urban central solid biomass CHP CC" : "solid biomass CHP",
+
 }
 
 
@@ -263,6 +269,25 @@ def extract_res_statistics(n):
 
     return pd.concat(df)
 
+def extract_res_temporal_energy(config, n):
+    df = []
+    for y, ni in n.items():
+        units = pd.concat([ni.generators,ni.storage_units,ni.links])
+        units_t = pd.concat([ni.generators_t.p,ni.storage_units_t.p,ni.links_t.p1],axis=1)
+        res = units.query("carrier in @RES or carrier in @HYDRO or " \
+                          "carrier.str.contains('solar thermal') or carrier.str.contains('solid biomass CHP')")
+        res_t = units_t[res.index]
+        res.loc[res.bus.isna(),"bus"] = res.loc[res.bus.isna(),"bus1"]
+        res['country'] = res.bus.map(renamer_to_country)
+        res['carrier'] = res.carrier.apply(remove_prefixes).apply(lambda x : RENAMER.get(x,x))
+        
+        res_t.columns = res_t.columns.map(lambda x :( res.loc[x].carrier,res.loc[x].country))
+        res_t.rename_axis(['carrier','country'],axis=1,inplace=True)
+        res_t = res_t.groupby(['carrier','country'],axis=1).sum()
+        res_t.index = pd.to_datetime(pd.DatetimeIndex(res_t.index.values,name='snapshots').strftime(f'{y}-%m-%d-%H'))
+        df.append(res_t)
+    df = pd.concat(df)/1e3 #GW
+    return df
 
 def extract_country_capacities(config, n):
     df = {}
@@ -750,6 +775,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     carriers_renamer.update(ELEC_RENAMER)
 
     # # DataFrames to extract
+    temporal_res_supply = extract_res_temporal_energy(config,n)
     prod_profiles = extract_profiles(config, n, supply=True)
     load_profiles = extract_profiles(config, n, load=True)
     # n_loads = extract_loads(n)
@@ -766,9 +792,6 @@ def transform_data(config, n, n_ext, color_shift=None):
     temporal_supply_energy = extract_temporal_supply_energy(config, n, carriers_renamer=carriers_renamer,
                                                             time_aggregate=False, country_aggregate=True)
 
-    # temporal_res_supply = extract_temporal_supply_energy(config, n, carriers = ['elec', 'solid_biomass'], 
-    #                                               carriers_renamer = carriers_renamer, time_aggregate = False,
-    #                                               country_aggregate = False)
     n_gas_out = extract_gas_phase_out(n, config["scenario"]["planning_horizons"][0])
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
@@ -812,6 +835,7 @@ def transform_data(config, n, n_ext, color_shift=None):
         # 'loads_profiles': n_loads,
         "generation_profiles": prod_profiles,
         "load_profiles": load_profiles,
+        "temporal_res_supply": temporal_res_supply
     }
 
     figures = {

@@ -89,6 +89,11 @@ def load_supply_temporal(config):
     return supply
 
 
+
+def load_res_temporal(config):
+    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"))
+
+
 def load_generation_profiles(config):
     return pd.read_csv(Path(config["csvs"], "generation_profiles.csv"))
 
@@ -102,7 +107,8 @@ def load_data_st(config):
         "supply_temporal",
         "supply_energy_df",
         "imports_exports",
-        "generation_profiles"
+        "generation_profiles",
+        "res_temporal",
     ]
 
     with pd.ExcelWriter(Path(config["path"]["analysis_path"], "graph_extraction_st.xlsx")) as xl:
