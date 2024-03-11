@@ -67,6 +67,16 @@ def load_supply_energy_df(config, load=True):
     df = pd.concat(dfl)
     return df
 
+def load_res_potentials(config):
+    df = pd.read_csv(Path(config["csvs"], "res_potentials.csv"),header=0)
+    return (
+        df.loc[:,['carrier','region',config['years_str'][-1]]]
+            .rename(columns={'region':'country',config['years_str'][-1]:'Potential [GW]'})
+            .pivot(columns='carrier',index='country',values='Potential [GW]')
+            .fillna(0)
+            .reindex(columns= ['hydro','ror','offwind','onwind','solar'])
+            .reset_index()
+            )
 
 def load_imports_exports(config):
     """
@@ -108,6 +118,7 @@ def load_data_st(config):
         "imports_exports",
         "generation_profiles",
         "res_temporal",
+        "res_potentials"
     ]
 
     with pd.ExcelWriter(Path(config["path"]["analysis_path"], "graph_extraction_st.xlsx")) as xl:
