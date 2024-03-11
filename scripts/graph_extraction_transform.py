@@ -194,16 +194,11 @@ def extract_res_potential(n):
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
 
     for y, ni in n.items():
-        gens = ni.generators[["p_nom_max", "p_nom_opt"]].reset_index()
-        su = ni.storage_units[["p_nom_max", "p_nom_opt"]].reset_index()
-        su = su.rename(columns={
-            'StorageUnit': 'Generator'})  # renaming the columns allows StorageUnits to be treated the same as Generators
-        df = pd.concat([su, gens])
-
-        df[["region", "carrier", "build_year"]] = df["Generator"].str.extract(rx)
+        df = pd.concat([ni.df("Generator"),ni.df("Link"),ni.df("StorageUnit")])[["p_nom_max", "p_nom_opt"]].reset_index()
+        df[["region", "carrier", "build_year"]] = df["index"].str.extract(rx)
         df["carrier"] = df["carrier"].str.rstrip("-").replace(RENAMER)
         df["planning horizon"] = y
-        df = df[df["carrier"].isin(["onwind", "offwind", "solar", "ror", "hydro", "PHS"])]
+        df = df.query('carrier in ["onwind", "offwind", "solar", "residential / services solar thermal", "ror", "hydro", "PHS"]')
         dfx.append(
             df.groupby(["planning horizon", "carrier", "build_year", "region"]).sum(numeric_only=True) / 1e3
         )  # GW      
