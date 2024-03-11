@@ -89,9 +89,8 @@ def load_supply_temporal(config):
     return supply
 
 
-
 def load_res_temporal(config):
-    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"))
+    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"),header=0)
 
 
 def load_generation_profiles(config):

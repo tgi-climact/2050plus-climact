@@ -36,7 +36,7 @@ df = data.copy()
 country = st.selectbox('Choose your country:', ['all'] + list(df["country"].unique()))
 if country != 'all':
     df = df.query("country in @country")
-df = df.groupby(['carrier']).sum(numeric_only=True)
+df = df.groupby(['carrier']).sum(numeric_only=True).T
 carrier = st.selectbox('Choose your carrier:', list(df.index.unique()))
 if carrier != 'all':
     df = df.query("carrier in @carrier")

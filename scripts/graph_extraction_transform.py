@@ -282,7 +282,7 @@ def extract_res_temporal_energy(config, n):
         res_t.index = pd.to_datetime(pd.DatetimeIndex(res_t.index.values,name='snapshots').strftime(f'{y}-%m-%d-%H'))
         df.append(res_t)
     df = pd.concat(df)/1e3 #GW
-    return df
+    return df.T
 
 def extract_country_capacities(config, n):
     df = {}
