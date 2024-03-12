@@ -15,7 +15,7 @@ st.title("Imports and exports per carrier")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_data():
+def get_data(scenario):
     df = (
         pd.read_excel(
             Path(network_path,
@@ -28,7 +28,7 @@ def get_data():
     return df
 
 
-df = get_data()
+df = get_data(scenario)
 
 
 def query_imp_exp(df, carriers, country, year, imports_exports):

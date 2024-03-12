@@ -15,7 +15,7 @@ st.title("Renewable production per carrier")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_df():
+def get_df(scenario):
     return (
         pd.read_excel(
             Path(network_path,
@@ -33,7 +33,7 @@ def get_df():
 # - 3h load profile
 # - eventually per country
 years = ['2030', '2040', '2050']
-data = get_df()
+data = get_df(scenario)
 df = data.copy()
 
 col1, col2 = st.columns(2)

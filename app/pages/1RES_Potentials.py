@@ -15,7 +15,7 @@ st.title("Renewable production potentials")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_df():
+def get_df(scenario):
     return (
         pd.read_excel(
             Path(network_path,
@@ -28,7 +28,7 @@ def get_df():
 
 
 # %%
-data = get_df()
+data = get_df(scenario)
 df = data.copy()
 
 st.header("Potentials per carrier")

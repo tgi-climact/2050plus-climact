@@ -15,7 +15,7 @@ st.title("Loads per carrier")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_data():
+def get_data(scenario):
     df = (
         pd.read_excel(
             Path(network_path,
@@ -29,7 +29,7 @@ def get_data():
 
 
 # %%
-df = get_data()
+df = get_data(scenario)
 
 all = "EU27 + TYNDP"
 col1, col2 = st.columns(2)

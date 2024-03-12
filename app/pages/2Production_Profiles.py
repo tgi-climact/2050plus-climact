@@ -17,7 +17,7 @@ st.text("Data displayed are for EU27 + TYNDP.")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_data():
+def get_data(scenario):
     return (
         pd.read_excel(
             Path(network_path,
@@ -36,7 +36,7 @@ def get_data():
 # - eventually per country
 # - eventuelly per subtype of supply
 years = ['2030', '2040', '2050']
-data = get_data()
+data = get_data(scenario)
 col1, col2 = st.columns(2)
 with col1:
     carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=4)
