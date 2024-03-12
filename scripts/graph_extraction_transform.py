@@ -234,33 +234,37 @@ def extract_res_potential(n):
     return df_potential
 
 
-def stats(n):    
+def stats(config, n, carriers_renamer):    
     inst_capa_elec_node = []
+    
+    sector_mapping = pd.read_csv(
+        Path(config["path"]["analysis_path"].resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2],
+        header=0).dropna()
+    sector_mapping = sector_mapping.reset_index()
+    sector_mapping['carrier'] = sector_mapping['carrier'].map(lambda x: carriers_renamer.get(x, x))
+    sector_mapping['item'] = sector_mapping['item'].map(remove_prefixes)
+    sector_mapping.loc[sector_mapping.query("component == 'links'").index, 'item'] = sector_mapping.loc[sector_mapping.query("component == 'links'").index, 'item'].apply(lambda x : x[:-1])
+    sector_mapping.component = sector_mapping.component.apply({"generators":"Generator", "storage_units":"StorageUnit", "links":"Link"}.get)
+    sector_mapping = sector_mapping.query('carrier=="elec"').groupby(["carrier", "component", "item"]).first()
+    
     for y, ni in n.items():
         stats = ni.statistics
         inst_capa_elec_node_i = stats.optimal_capacity(bus_carrier=['AC','low voltage'],groupby=fun)
-        inst_capa_elec_node_i = inst_capa_elec_node_i.droplevel(level=['component'])
-        
-        inst_capa_elec_node_i.index = pd.MultiIndex.from_arrays([
-            inst_capa_elec_node_i.index.get_level_values(0),
-            inst_capa_elec_node_i.index.get_level_values(1).str.rstrip("-").map(lambda x: RENAMER.get(x, x))
-        ], names=('bus', 'carrier'))
-        
-        inst_capa_elec_node_i = inst_capa_elec_node_i.to_frame()
-        inst_capa_elec_node_i.rename(columns={0: y}, inplace=True)
-        inst_capa_elec_node_i[y] /= 1000 # MW => GW
-        
-        inst_capa_elec_node_i.index = pd.MultiIndex.from_arrays([
-            inst_capa_elec_node_i.index.get_level_values(0).str[:2], 
-            inst_capa_elec_node_i.index.get_level_values(1)
-        ], names=('bus', 'carrier'))
-        
+
+        inst_capa_elec_node_i = (inst_capa_elec_node_i
+        .rename(y)
+        .reset_index()
+        .rename(columns={'carrier':'item', 'bus':'country'})
+        .merge(sector_mapping.droplevel('carrier'), left_on=["component", "item"], right_index=True, how="left")
+        .apply({"country":lambda x : x[:2], "sector":lambda x:x, y:lambda x:x})
+        .groupby(['country','sector'])
+        .sum(numeric_only=True)
+        /1e3 #GW
+        )
+     
         inst_capa_elec_node.append(inst_capa_elec_node_i)
 
-    inst_capa_elec_node = pd.concat(inst_capa_elec_node)
-    inst_capa_elec_node.groupby(["bus", "carrier"]).sum()
-    
-    return
+    return pd.concat(inst_capa_elec_node,axis=1)
 
 def fun(n,c,nice_names= True):
     if c in n.one_port_components:
@@ -806,7 +810,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     carriers_renamer.update(HEAT_RENAMER)
     carriers_renamer.update(ELEC_RENAMER)
     
-    stats(n)
+    n_power_capa = stats(config, n, carriers_renamer)
 
     # # DataFrames to extract
     temporal_res_supply = extract_res_temporal_energy(config,n)
@@ -847,6 +851,7 @@ def transform_data(config, n, n_ext, color_shift=None):
         'units_capacities_countries': capa_country,
         'gas_phase_out': n_gas_out,
         'res_potentials': n_res_pot,
+        "power_production_countries": n_power_capa,
 
         # networks
         'grid_capacities_countries': ACDC_countries,
