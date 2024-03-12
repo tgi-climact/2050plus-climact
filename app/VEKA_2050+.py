@@ -15,7 +15,10 @@ st.markdown(
     The following informations are available:
     - Loads
     - Capacities
-    - Production profiles
+    - RES potentials
+    - Consumption Profiles
+    - Production Profiles
+    - RES Profiles
     - Imports & Exports
     - Balancing
     - Costs
