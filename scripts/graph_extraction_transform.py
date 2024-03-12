@@ -230,6 +230,44 @@ def extract_res_potential(n):
     return df_potential
 
 
+def stats(n):
+
+    
+    inst_capa_elec_node = []
+    for y, ni in n.items():
+        stats = ni.statistics
+        inst_capa_elec_node_i = stats.optimal_capacity(bus_carrier=['AC','low voltage'],groupby=fun)
+        inst_capa_elec_node_i = inst_capa_elec_node_i.droplevel(level=['component'])
+        
+        inst_capa_elec_node_i.index = pd.MultiIndex.from_arrays([
+            inst_capa_elec_node_i.index.get_level_values(0),
+            inst_capa_elec_node_i.index.get_level_values(1).str.rstrip("-").map(lambda x: RENAMER.get(x, x))
+        ], names=('bus', 'carrier'))
+        
+        inst_capa_elec_node_i = inst_capa_elec_node_i.to_frame()
+        inst_capa_elec_node_i = inst_capa_elec_node_i.rename(columns={0 : y})
+        inst_capa_elec_node_i[y] = inst_capa_elec_node_i[y].div(1000)
+        
+        inst_capa_elec_node_i.index = pd.MultiIndex.from_arrays([
+            inst_capa_elec_node_i.index.get_level_values(0).str[:2], 
+            inst_capa_elec_node_i.index.get_level_values(1)
+        ], names=('bus', 'carrier'))
+        
+        inst_capa_elec_node.append(inst_capa_elec_node_i)
+    
+
+    inst_capa_elec_node = pd.concat(inst_capa_elec_node)
+    inst_capa_elec_node.groupby(["bus", "carrier"]).sum()
+    
+    return
+
+def fun(n,c,nice_names= True):
+    if c in n.one_port_components:
+        return [n.df(c).bus, n.df(c).carrier]
+    else:
+        return [n.df(c).bus1, n.df(c).carrier]
+
+
 def extract_res_statistics(n):
     df = []
     for y, ni in n.items():
@@ -745,6 +783,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     carriers_renamer.update(HEAT_RENAMER)
     carriers_renamer.update(ELEC_RENAMER)
     
+    stats(n)
 
     # # DataFrames to extract
     prod_profiles = extract_profiles(config, n, supply = True)
