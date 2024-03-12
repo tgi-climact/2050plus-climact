@@ -180,6 +180,7 @@ def extract_nodal_oil_load(config, nhours=8760):
         df_oil.append(df)
 
     df_oil = pd.concat(df_oil)
+    df_oil.columns = df_oil.columns.str.capitalize()
 
     return df_oil
 

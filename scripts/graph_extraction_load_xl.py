@@ -427,12 +427,12 @@ def load_res_potentials_be(config):
     )
 
 
-def load_industrial_demand(config):
-    return (
-        pd.read_csv(Path(config["csvs"], "loads_profiles.csv"), header=0)
-        .query("Load != 'Electricity demand for sectors'")
-        .groupby(by=["Load", "Years"]).agg({"Annual sum [TWh]": "sum"}).reset_index()
-    )
+# def load_industrial_demand(config):
+#     return (
+#         pd.read_csv(Path(config["csvs"], "load_profiles.csv"), header=0)
+#         .query("Load != 'Electricity demand for sectors'")
+#         .groupby(by=["Load", "Years"]).agg({"Annual sum [TWh]": "sum"}).reset_index()
+#     )
 
 
 # def load_production_profile(config):
