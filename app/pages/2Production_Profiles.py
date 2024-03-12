@@ -39,7 +39,7 @@ years = ['2030', '2040', '2050']
 data = get_data(scenario)
 col1, col2 = st.columns(2)
 with col1:
-    carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=4)
+    carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=5)
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
 with col2:
