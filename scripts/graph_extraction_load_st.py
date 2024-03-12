@@ -74,7 +74,7 @@ def load_res_potentials(config):
             .rename(columns={'region':'country',config['years_str'][-1]:'Potential [GW]'})
             .pivot(columns='carrier',index='country',values='Potential [GW]')
             .fillna(0)
-            .reindex(columns= ['hydro','ror','offwind','onwind','solar'])
+            .reindex(columns= ['hydro','ror','offwind','onwind','solar', 'solar thermal'])
             .reset_index()
             )
 

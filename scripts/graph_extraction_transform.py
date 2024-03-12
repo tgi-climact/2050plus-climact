@@ -84,11 +84,11 @@ RENAMER = {
     "urban central resistive heater": "residential / services resistive heater",
 
     # Solar thermals
-    "residential rural solar thermal": "residential / services solar thermal",
-    "residential urban decentral solar thermal": "residential / services solar thermal",
-    "services rural solar thermal": "residential / services solar thermal",
-    "services urban decentral solar thermal": "residential / services solar thermal",
-    "urban central solar thermal": "residential / services solar thermal",
+    "residential rural solar thermal collector": "solar thermal",
+    "residential urban decentral solar thermal collector": "solar thermal",
+    "services rural solar thermal collector": "solar thermal",
+    "services urban decentral solar thermal collector": "solar thermal",
+    "urban central solar thermal collector": "solar thermal",
     
     # Solid biomass CHP
     "urban central solid biomass CHP" : "solid biomass CHP",
@@ -198,7 +198,7 @@ def extract_res_potential(n):
         df[["region", "carrier", "build_year"]] = df["index"].str.extract(rx)
         df["carrier"] = df["carrier"].str.rstrip("-").replace(RENAMER)
         df["planning horizon"] = y
-        df = df.query('carrier in ["onwind", "offwind", "solar", "residential / services solar thermal", "ror", "hydro", "PHS"]')
+        df = df.query('carrier in ["onwind", "offwind", "solar", "solar thermal", "ror", "hydro", "PHS"]')
         dfx.append(
             df.groupby(["planning horizon", "carrier", "build_year", "region"]).sum(numeric_only=True) / 1e3
         )  # GW      
