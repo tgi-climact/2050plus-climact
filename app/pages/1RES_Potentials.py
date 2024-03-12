@@ -13,7 +13,7 @@ scenario = st_side_bar()
 
 st.title("Renewable production potentials")
 
-@st.cache_data
+@st.cache_data(show_spinner="Retrieving data ...")
 def get_df():
     return (
         pd.read_excel(
@@ -32,7 +32,6 @@ df = data.copy()
 st.header("Potentials per carrier")
 
 df = df.groupby("country").sum()
-st.write(df)
 carrier = st.multiselect('Choose your carrier:', list(df.columns.unique()),default=list(df.columns.unique())[0])
 df = df.loc[:,carrier]
 carrier_list = ' & '.join(list(map(str.capitalize,carrier)))
@@ -42,13 +41,12 @@ fig = px.bar(
     title=f"{carrier_list} potentials [GW]",
     text_auto=".2s"
 )
-# fig.update_traces(line=dict(width=0.1))
-# fig.update_layout(legend_traceorder="reversed")
+
 fig.update_yaxes(title_text='Potential [GW]')
 fig.update_xaxes(title_text='Countries')
-fig.update_traces(hovertemplate=None)
-fig.update_layout(hovermode="x unified")
-fig.update_layout(legend_title_text = 'Technologies')
+fig.update_traces(hovertemplate="%{y:,.0f}")
+fig.update_layout(hovermode="x unified",
+                  legend_title_text = 'Technologies')
 
 st.plotly_chart(
     fig

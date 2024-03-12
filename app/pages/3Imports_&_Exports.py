@@ -14,7 +14,7 @@ scenario = st_side_bar()
 st.title("Imports and exports per carrier")
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Retrieving data ...")
 def get_data():
     df = (
         pd.read_excel(
@@ -44,10 +44,13 @@ def query_imp_exp(df, carriers, country, year, imports_exports):
     )
     return df_imp_exp
 
-
-country = st.selectbox('Choose your country:', df["countries"].unique())
-carrier = st.selectbox('Choose your carrier:', df['carriers'].unique())
-year = st.selectbox('Choose your year:', df["year"].unique())
+col1, col2, col3 = st.columns(3)
+with col1:
+    country = st.selectbox('Choose your country:', df["countries"].unique())
+with col2:
+    carrier = st.selectbox('Choose your carrier:', df['carriers'].unique())
+with col3:
+    year = st.selectbox('Choose your year:', df["year"].unique())
 df_imp_exp = (
     pd.concat([query_imp_exp(df, carrier, country, year, 'imports'),
                -1 * query_imp_exp(df, carrier, country, year, 'exports')],

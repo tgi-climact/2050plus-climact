@@ -14,7 +14,7 @@ scenario = st_side_bar()
 st.title("Loads per carrier")
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Retrieving data ...")
 def get_data():
     df = (
         pd.read_excel(
@@ -27,16 +27,19 @@ def get_data():
     )
     return df
 
-
+#%%
 df = get_data()
 
 all = "EU27 + TYNDP"
-country = st.selectbox('Choose your country:', [all] + list(df["node"].unique()))
+col1, col2 = st.columns(2)
+with col1:
+    country = st.selectbox('Choose your country:', [all] + list(df["node"].unique()))
 if country != all:
     df = df.query("node==@country").drop("node", axis=1)
 else:
     df = df.groupby(by=["sector", "carrier"]).sum(numeric_only=True).reset_index()
-carrier = st.selectbox('Choose your carrier:', df["carrier"].unique())
+with col2:
+    carrier = st.selectbox('Choose your carrier:', df["carrier"].unique())
 df = df.query("carrier==@carrier").drop("carrier", axis=1)
 
 df = df.groupby(by="sector").sum()

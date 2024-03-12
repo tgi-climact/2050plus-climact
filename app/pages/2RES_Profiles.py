@@ -13,7 +13,7 @@ scenario = st_side_bar()
 
 st.title("Renewable production per carrier")
 
-@st.cache_data
+@st.cache_data(show_spinner="Retrieving data ...")
 def get_df():
     return (
         pd.read_excel(
@@ -33,12 +33,16 @@ def get_df():
 years = ['2030','2040','2050']
 data = get_df()
 df = data.copy()
-country = st.selectbox('Choose your country:', ['EU27 + TYNDP'] + list(df["country"].unique()))
+
+col1, col2 = st.columns(2)
+with col1:
+    country = st.selectbox('Choose your country:', ['EU27 + TYNDP'] + list(df["country"].unique()))
 if country != 'EU27 + TYNDP':
     df = df.query("country in @country")
 df = df.groupby(['carrier']).sum(numeric_only=True).T
 
-year = st.selectbox('Choose the year:',years )
+with col2:
+    year = st.selectbox('Choose the year:',years )
 df = df.query("index.str.contains(@year)")
 
 df = abs(df.loc[:,abs(df.sum()/1e3*3)>1e-1]).T
@@ -55,6 +59,7 @@ df_table = (
     
 st.subheader(f"Renewable annual production for {country}")
 st.table(df_table)
+st.subheader(f"Renewable production profiles for {country}")
 
 carrier = st.selectbox('Choose your carrier:', list(df.index.unique()))
 if carrier != 'all':
@@ -64,7 +69,6 @@ df = df.sum(axis=0).rename(carrier).to_frame()
 
 
 
-st.subheader(f"Renewable production profiles for {country}")
 
 fig = px.area(
     df,

@@ -15,7 +15,7 @@ scenario = st_side_bar()
 st.title("Production profiles per carrier")
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Retrieving data ...")
 def get_data():
     return (
         pd.read_excel(
@@ -36,10 +36,13 @@ def get_data():
 # - eventuelly per subtype of supply
 years = ['2030', '2040', '2050']
 data = get_data()
-carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=4)
+col1,col2 = st.columns(2)
+with col1:
+    carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=4)
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
-year = st.selectbox('Choose the year:', years)
+with col2:
+    year = st.selectbox('Choose the year:', years)
 df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values,name='snapshots').strftime(f'{year}-%m-%d-%H'))
 df = df.pivot(index='snapshot', columns=['sector'], values=year).rename_axis('sector', axis=1)
 df = df[(df.std() / df.mean()).sort_values().index]
