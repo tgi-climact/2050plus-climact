@@ -57,7 +57,7 @@ def load_supply_energy_df(config, load=True):
         elif ca == "oil":
             # if load and countries is not None:  # if load and countries exist
             df_eu_load = _load_nodal_oil(config, aggregate=False)
-            df_c_load = _load_supply_energy(config, load=load, carriers=ca, aggregate=False)
+            df_c_load = _load_supply_energy(config, load=load, carriers=ca, aggregate=False).query("node!='EU oil'")
             dfl.append(pd.concat([df_c_load, df_eu_load]))
             # else:
             #     dfl.append(_load_supply_energy(config, load=load, carriers=ca, aggregate=False))
