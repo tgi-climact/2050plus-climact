@@ -107,10 +107,10 @@ co2 stored,links,solid biomass for industry CC3,
 co2 stored,links,urban central gas CHP CC4,
 co2 stored,links,urban central solid biomass CHP CC4,
 co2 stored,stores,co2 stored,
-coal,generators,coal,
+coal,generators,coal,Extraction
 coal,links,coal0,
 coal,stores,coal,
-gas,generators,gas,
+gas,generators,gas,Extraction
 gas,links,biogas to gas1,
 gas,links,BioSNG1,SNG
 gas,links,CCGT0,Power supply
@@ -163,7 +163,7 @@ Li ion,links,BEV charger1,
 Li ion,links,V2G0,
 Li ion,loads,land transport EV,
 Li ion,stores,battery storage,
-lignite,generators,lignite,
+lignite,generators,lignite,Extraction
 lignite,links,lignite0,
 lignite,stores,lignite,
 low voltage,generators,solar rooftop,Solar
@@ -196,7 +196,7 @@ NH3,links,ammonia cracker0,Ammonia Cracker
 NH3,links,Haber-Bosch1,Haber-Bosch
 NH3,loads,NH3,
 NH3,stores,ammonia store,
-oil,generators,oil,
+oil,generators,oil,Extraction
 oil,links,biomass to liquid1,Biomass to liquid
 oil,links,Fischer-Tropsch1,Fischer-Tropsch
 oil,links,oil0,
