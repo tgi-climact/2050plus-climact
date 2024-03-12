@@ -13,6 +13,7 @@ st_page_config(layout="wide")
 scenario = st_side_bar()
 
 st.title("Consumption profiles per carrier")
+st.text("Data displayed are for EU27 + TYNDP.")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")

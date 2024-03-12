@@ -34,7 +34,7 @@ df = data.copy()
 st.header("Potentials per carrier")
 
 df = df.groupby("country").sum()
-carrier = st.multiselect('Choose your carrier:', list(df.columns.unique()), default=list(df.columns.unique())[0])
+carrier = st.multiselect('Choose your carrier:', list(df.columns.unique()), default=list(df.columns.unique())[2:4])
 df = df.loc[:, carrier]
 carrier_list = ' & '.join(list(map(str.capitalize, carrier)))
 
