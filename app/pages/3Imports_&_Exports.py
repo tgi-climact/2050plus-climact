@@ -15,7 +15,7 @@ st.title("Imports and exports per carrier")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_data():
+def get_data(scenario):
     df = (
         pd.read_excel(
             Path(network_path,
@@ -28,7 +28,7 @@ def get_data():
     return df
 
 
-df = get_data()
+df = get_data(scenario)
 
 
 def query_imp_exp(df, carriers, country, year, imports_exports):
@@ -44,9 +44,10 @@ def query_imp_exp(df, carriers, country, year, imports_exports):
     )
     return df_imp_exp
 
+
 col1, col2, col3 = st.columns(3)
 with col1:
-    country = st.selectbox('Choose your country:', df["countries"].unique())
+    country = st.selectbox('Choose your country:', df["countries"].unique(), index=3)
 with col2:
     carrier = st.selectbox('Choose your carrier:', df['carriers'].unique())
 with col3:
@@ -56,8 +57,7 @@ df_imp_exp = (
                -1 * query_imp_exp(df, carrier, country, year, 'exports')],
               axis=1, keys=['imports', 'exports'])
 )
-df_imp_exp.rename(mapper = lambda x : x.capitalize(), axis=1, inplace = True)
-
+df_imp_exp.rename(mapper=lambda x: x.capitalize(), axis=1, inplace=True)
 
 fig = px.bar(
     df_imp_exp,
@@ -77,10 +77,9 @@ st.plotly_chart(
 )
 
 df_imp_exp_ = df_imp_exp.drop(df_imp_exp.query('Imports == 0 and Exports ==0').index)
-df_imp_exp_.rename(mapper = lambda x : x +" [TWh]", axis=1, inplace = True)
+df_imp_exp_.rename(mapper=lambda x: x + " [TWh]", axis=1, inplace=True)
 
 st.subheader(f"Annual {carrier} exchange volumes of {country} for {year} ")
-
 
 st.table(df_imp_exp_
          .style

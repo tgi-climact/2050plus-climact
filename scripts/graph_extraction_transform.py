@@ -204,6 +204,7 @@ def extract_res_potential(n):
         )  # GW      
 
     dfx = pd.concat(dfx)
+    # TODO : dfx["p_nom_opt"].index.get_level_values("build_year") ==  dfx.index.get_level_values("build_year")
     df_potential = pd.concat([
         (
             dfx.loc[
@@ -233,9 +234,7 @@ def extract_res_potential(n):
     return df_potential
 
 
-def stats(n):
-
-    
+def stats(n):    
     inst_capa_elec_node = []
     for y, ni in n.items():
         stats = ni.statistics
@@ -248,8 +247,8 @@ def stats(n):
         ], names=('bus', 'carrier'))
         
         inst_capa_elec_node_i = inst_capa_elec_node_i.to_frame()
-        inst_capa_elec_node_i = inst_capa_elec_node_i.rename(columns={0 : y})
-        inst_capa_elec_node_i[y] = inst_capa_elec_node_i[y].div(1000)
+        inst_capa_elec_node_i.rename(columns={0: y}, inplace=True)
+        inst_capa_elec_node_i[y] /= 1000 # MW => GW
         
         inst_capa_elec_node_i.index = pd.MultiIndex.from_arrays([
             inst_capa_elec_node_i.index.get_level_values(0).str[:2], 
@@ -257,7 +256,6 @@ def stats(n):
         ], names=('bus', 'carrier'))
         
         inst_capa_elec_node.append(inst_capa_elec_node_i)
-    
 
     inst_capa_elec_node = pd.concat(inst_capa_elec_node)
     inst_capa_elec_node.groupby(["bus", "carrier"]).sum()
@@ -323,6 +321,7 @@ def extract_res_temporal_energy(config, n):
     return df.T
 
 def extract_country_capacities(config, n):
+    # TODO : dictionnary is useless here
     df = {}
     df["nodal_capacities"] = pd.DataFrame(columns=config["scenario"]["planning_horizons"], dtype=float)
 

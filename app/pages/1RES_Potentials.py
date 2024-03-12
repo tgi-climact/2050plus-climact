@@ -13,8 +13,9 @@ scenario = st_side_bar()
 
 st.title("Renewable production potentials")
 
+
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_df():
+def get_df(scenario):
     return (
         pd.read_excel(
             Path(network_path,
@@ -25,16 +26,17 @@ def get_df():
         )
     )
 
-#%%
-data = get_df()
+
+# %%
+data = get_df(scenario)
 df = data.copy()
 
 st.header("Potentials per carrier")
 
 df = df.groupby("country").sum()
-carrier = st.multiselect('Choose your carrier:', list(df.columns.unique()),default=list(df.columns.unique())[0])
-df = df.loc[:,carrier]
-carrier_list = ' & '.join(list(map(str.capitalize,carrier)))
+carrier = st.multiselect('Choose your carrier:', list(df.columns.unique()), default=list(df.columns.unique())[2:4])
+df = df.loc[:, carrier]
+carrier_list = ' & '.join(list(map(str.capitalize, carrier)))
 
 fig = px.bar(
     df,
@@ -46,7 +48,7 @@ fig.update_yaxes(title_text='Potential [GW]')
 fig.update_xaxes(title_text='Countries')
 fig.update_traces(hovertemplate="%{y:,.0f}")
 fig.update_layout(hovermode="x unified",
-                  legend_title_text = 'Technologies')
+                  legend_title_text='Technologies')
 
 st.plotly_chart(
     fig
@@ -62,22 +64,17 @@ if country != 'EU27 + TYNDP':
     df_tab = df_tab.set_index('country').loc[country]
 else:
     df_tab = df_tab.sum(numeric_only=True)
-    
-    
+
 df_tab = (
     df_tab
     .rename(f"Potential for {country}")
     .to_frame().T
-    .rename(mapper = lambda x : x.capitalize() +" [GW]", axis=1)
-    )
+    .rename(mapper=lambda x: x.capitalize() + " [GW]", axis=1)
+)
 
 df_tab = (df_tab
-    .style
-    .format(precision=2, thousands = ",", decimal = '.')
-    )
+          .style
+          .format(precision=2, thousands=",", decimal='.')
+          )
 
 st.table(df_tab)
-
-
-
-

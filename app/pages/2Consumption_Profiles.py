@@ -13,10 +13,11 @@ st_page_config(layout="wide")
 scenario = st_side_bar()
 
 st.title("Consumption profiles per carrier")
+st.text("Data displayed are for EU27 + TYNDP.")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_data():
+def get_data(scenario):
     return (
         pd.read_excel(
             Path(network_path,
@@ -35,7 +36,7 @@ def get_data():
 # - eventually per country
 # - eventuelly per subtype of supply
 years = ['2030', '2040', '2050']
-data = get_data()
+data = get_data(scenario)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -44,7 +45,7 @@ df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
 with col2:
     year = st.selectbox('Choose the year:', years)
-df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values,name='snapshots').strftime(f'{year}-%m-%d-%H'))
+df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values, name='snapshots').strftime(f'{year}-%m-%d-%H'))
 df = df.pivot(index='snapshot', columns=['sector'], values=year).rename_axis('sector', axis=1)
 df = df[(df.std() / df.mean()).sort_values().index]
 df = df.loc[:, df.sum() / 1e3 > CLIP_VALUE_TWH]

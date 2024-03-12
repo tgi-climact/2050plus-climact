@@ -15,7 +15,7 @@ st.title("Loads per carrier")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_data():
+def get_data(scenario):
     df = (
         pd.read_excel(
             Path(network_path,
@@ -27,8 +27,9 @@ def get_data():
     )
     return df
 
-#%%
-df = get_data()
+
+# %%
+df = get_data(scenario)
 
 all = "EU27 + TYNDP"
 col1, col2 = st.columns(2)
@@ -58,13 +59,13 @@ fig.update_xaxes(title_text='Sectors')
 fig.update_layout(legend_title_text='Technologies')
 
 st.plotly_chart(
-     fig
+    fig
     , use_container_width=True
 )
 
 st.subheader(f"Annual load per sector for {carrier}")
 st.table(df
-         .rename(mapper = lambda x : x + " [TWh]", axis=1)
+         .rename(mapper=lambda x: x + " [TWh]", axis=1)
          .style
-    .format(precision=2, thousands = ",", decimal = '.')
-)
+         .format(precision=2, thousands=",", decimal='.')
+         )
