@@ -41,14 +41,27 @@ df = df.query("carrier==@carrier").drop("carrier", axis=1)
 
 df = df.groupby(by="sector").sum()
 
+fig = px.bar(
+    df,
+    title=f"Load in {country} for {carrier} [TWh]",
+    barmode="group",
+    text_auto=".2s"
+)
+
+fig.update_traces(hovertemplate="%{y:,.0f}")
+fig.update_layout(hovermode="x unified")
+fig.update_yaxes(title_text='Consumption [TWh]')
+fig.update_xaxes(title_text='Sectors')
+fig.update_layout(legend_title_text='Technologies')
+
 st.plotly_chart(
-    px.bar(
-        df,
-        title=f"Load in {country} for {carrier} [TWh]",
-        barmode="group",
-        text_auto=".2s"
-    )
+     fig
     , use_container_width=True
 )
 
-st.table(df.style.format(precision=2))
+st.subheader(f"Annual load per sector for {carrier}")
+st.table(df
+         .rename(mapper = lambda x : x + " [TWh]", axis=1)
+         .style
+    .format(precision=2, thousands = ",", decimal = '.')
+)

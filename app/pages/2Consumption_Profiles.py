@@ -41,6 +41,7 @@ carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=3
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
 year = st.selectbox('Choose the year:', years)
+df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values,name='snapshots').strftime(f'{year}-%m-%d-%H'))
 df = df.pivot(index='snapshot', columns=['sector'], values=year).rename_axis('sector', axis=1)
 df = df[(df.std() / df.mean()).sort_values().index]
 df = df.loc[:, df.sum() / 1e3 > CLIP_VALUE_TWH]
@@ -49,15 +50,26 @@ fig = px.area(
     df,
     title=f"System consumption profile for {carrier} [GW]",
 )
-fig.update_traces(line=dict(width=0.1))
-fig.update_layout(legend_traceorder="reversed")
+fig.update_traces(hovertemplate="%{y:,.0f}",
+                  line=dict(width=0.1))
+fig.update_layout(legend_traceorder="reversed",
+                  hovermode="x unified",
+                  legend_title_text='Technologies')
 fig.update_yaxes(title_text='Consumption [GW]')
 fig.update_xaxes(title_text='Timesteps')
-fig.update_layout(legend_title_text='Technologies')
 
 st.plotly_chart(
     fig
     , use_container_width=True
 )
 
-st.table((df.sum() / 1e3 * 3).rename('Annual consumption [TWh]'))
+st.subheader(f"Annual {carrier} consumption per sector for {year} ")
+
+st.table(
+    (df.sum() / 1e3
+     * 8760 / len(df.axes[0]))
+    .rename('Annual consumption [TWh]')
+    .to_frame()
+    .style
+    .format(precision=2, thousands=",", decimal='.')
+)

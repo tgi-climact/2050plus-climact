@@ -53,16 +53,32 @@ df_imp_exp = (
                -1 * query_imp_exp(df, carrier, country, year, 'exports')],
               axis=1, keys=['imports', 'exports'])
 )
+df_imp_exp.rename(mapper = lambda x : x.capitalize(), axis=1, inplace = True)
+
+
+fig = px.bar(
+    df_imp_exp,
+    title=f"Imports / Exports for {country} for {carrier} [TWh]",
+    text_auto=".2s"
+)
+
+fig.update_traces(hovertemplate="%{y:,.0f}")
+fig.update_yaxes(title_text='Annual exchange volume [TWh]')
+fig.update_xaxes(title_text='Countries')
+fig.update_layout(hovermode="x unified",
+                  legend_title_text='Exchange')
 
 st.plotly_chart(
-    px.bar(
-        df_imp_exp,
-        title=f"Imports / Exports for {country} for {carrier} [TWh]",
-        text_auto=".2s"
-    )
+    fig
     , use_container_width=True
 )
 
-df_imp_exp_ = df_imp_exp.drop(df_imp_exp.query('imports == 0 and exports ==0').index)
+df_imp_exp_ = df_imp_exp.drop(df_imp_exp.query('Imports == 0 and Exports ==0').index)
+df_imp_exp_.rename(mapper = lambda x : x +" [TWh]", axis=1, inplace = True)
 
-st.table(df_imp_exp_.style.format(precision=2, thousands=",", decimal='.'))
+st.subheader(f"Annual {carrier} exchange volumes of {country} for {year} ")
+
+
+st.table(df_imp_exp_
+         .style
+         .format(precision=2, thousands=",", decimal='.'))
