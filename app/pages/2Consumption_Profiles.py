@@ -44,7 +44,7 @@ df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
 with col2:
     year = st.selectbox('Choose the year:', years)
-df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values,name='snapshots').strftime(f'{year}-%m-%d-%H'))
+df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values, name='snapshots').strftime(f'{year}-%m-%d-%H'))
 df = df.pivot(index='snapshot', columns=['sector'], values=year).rename_axis('sector', axis=1)
 df = df[(df.std() / df.mean()).sort_values().index]
 df = df.loc[:, df.sum() / 1e3 > CLIP_VALUE_TWH]

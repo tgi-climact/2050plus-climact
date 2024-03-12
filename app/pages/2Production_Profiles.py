@@ -36,14 +36,14 @@ def get_data():
 # - eventuelly per subtype of supply
 years = ['2030', '2040', '2050']
 data = get_data()
-col1,col2 = st.columns(2)
+col1, col2 = st.columns(2)
 with col1:
     carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=4)
 df = data.query("carrier==@carrier").drop("carrier", axis=1)
 
 with col2:
     year = st.selectbox('Choose the year:', years)
-df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values,name='snapshots').strftime(f'{year}-%m-%d-%H'))
+df['snapshot'] = pd.to_datetime(pd.DatetimeIndex(df['snapshot'].values, name='snapshots').strftime(f'{year}-%m-%d-%H'))
 df = df.pivot(index='snapshot', columns=['sector'], values=year).rename_axis('sector', axis=1)
 df = df[(df.std() / df.mean()).sort_values().index]
 df = df.loc[:, df.sum() / 1e3 > CLIP_VALUE_TWH]
@@ -66,7 +66,6 @@ st.plotly_chart(
 )
 
 st.subheader(f"Annual {carrier} production per technology for {year} ")
-
 
 df_table = (
     (df.sum() / 1e3

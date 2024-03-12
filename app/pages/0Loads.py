@@ -27,7 +27,8 @@ def get_data():
     )
     return df
 
-#%%
+
+# %%
 df = get_data()
 
 all = "EU27 + TYNDP"
@@ -58,13 +59,13 @@ fig.update_xaxes(title_text='Sectors')
 fig.update_layout(legend_title_text='Technologies')
 
 st.plotly_chart(
-     fig
+    fig
     , use_container_width=True
 )
 
 st.subheader(f"Annual load per sector for {carrier}")
 st.table(df
-         .rename(mapper = lambda x : x + " [TWh]", axis=1)
+         .rename(mapper=lambda x: x + " [TWh]", axis=1)
          .style
-    .format(precision=2, thousands = ",", decimal = '.')
-)
+         .format(precision=2, thousands=",", decimal='.')
+         )
