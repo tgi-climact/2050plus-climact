@@ -546,7 +546,7 @@ def extract_temporal_supply_energy(config, n, carriers=None, carriers_renamer=No
                 .filter(lambda x : (x.sum(axis=0)>1e2).any())
         ).index].set_index(idx)
 
-    df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left").dropna()
+    df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left").dropna(axis=0,subset='sector')
     return df
 
 
