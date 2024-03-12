@@ -80,82 +80,6 @@ def _load_capacities(config, techs, historical="Historical (installed capacity b
     return df
 
 
-def _load_supply_energy_dico(config, load=True, countries=None):
-    """
-    Allow to split _load_supply_energy into its carriers for it
-    to be written tab by tab
-
-    """
-    dico = {}
-    supply_energy_carrier = (
-        _load_supply_energy(config, load=load, countries=countries)
-        .carrier
-        .replace({"AC": "electricity", "low voltage": "electricity"})
-        .unique()
-    )
-    #TODO add h2 and gas imports and exports
-    for ca in supply_energy_carrier:
-        # TODO : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ?
-        if ca == "electricity":
-            df_ac = _load_supply_energy(config, load=load, countries=countries, carriers="AC")
-            df_low = _load_supply_energy(config, load=load, countries=countries, carriers="low voltage")
-            df = pd.concat([df_ac, df_low])
-            del df["carrier"]
-            df = df.groupby(by="sector").sum().reset_index()
-
-            if not (load) and countries:
-                df_imp = _load_imp_exp(config, export=False, countries=countries, carriers='elec',
-                                       years=config["scenario"]["planning_horizons"])
-                df_exp = _load_imp_exp(config, export=True, countries=countries, carriers='elec',
-                                       years=config["scenario"]["planning_horizons"])
-                df_net_imp = (df_imp[config["scenario"]["planning_horizons"]] - df_exp[
-                    config["scenario"]["planning_horizons"]]).sum()
-                df = pd.concat([df, pd.DataFrame(['Net Imports'] + df_net_imp.values.tolist(), index=df.columns).T])
-            df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(), index=df.columns).T, df])
-            df.iloc[0, 0] = 'Total'
-            df.drop(df.query('sector == "V2G"').index, inplace=True)
-            dico[ca] = df
-        elif ca == "oil":
-            if load and countries is not None:  # if load and countries exist
-                df_eu_load = _load_nodal_oil(config, countries)
-                df_c_load = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
-                dico[ca] = pd.concat([df_c_load, df_eu_load])
-            else:
-                dico[ca] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
-        else:
-            dico[ca] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
-
-    for heat in ['dec_heat','cent_heat']:
-        carriers = [k for k in list(dico.keys()) if HEAT_RENAMER.get(k) == heat]
-        df = pd.DataFrame()
-        for d in carriers:
-            df = pd.concat([df,dico[d]])
-            dico.pop(d)
-        df = (df.groupby('sector')
-                .agg({c:'sum' if c in config['years_str'] else 'first' for c in df.columns})
-                .drop('carrier',axis=1))
-        dico[heat] = df
-    return dico
-
-
-def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None):
-    """
-    Return the imports or export of a subset of countries per country external to the subset
-    for a given carrier. Since the network imports/exports are zero-sum, the exports can be obtained
-    from the imports matrix
-
-    """
-    imp_exp = []
-    df = pd.read_csv(Path(config["csvs"], "imports_exports.csv"), header=0)
-    for y in years:
-        imports_exports = 'exports' if export else 'imports'
-        df_carrier = query_imp_exp(df.copy(), carriers, countries, y, imports_exports)
-        imp_exp.append(df_carrier.rename(y))
-    imp_exp = pd.concat(imp_exp, axis=1)
-    #TODO treat the display of exports/imports that does not specifically have the same countries displayed
-    return (
-        imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
-    )
 
 
 def load_capacities(config, tech_list, historical):
@@ -197,43 +121,6 @@ def load_fossil_fuels(config):
 def load_h2_capacities(config):
     return load_capacities(config, H2, historical="Historical (installed capacity by 2025)")
 
-
-def load_load_sectors(config):
-    dico = {}
-    for co_name, subset in config["countries"].items():
-        to_rename = _load_supply_energy_dico(config, load=True, countries=subset)
-        for k, v in to_rename.items():
-            dico[f"{co_name}_{k}"] = v
-    return dico
-
-
-def load_supply_sectors(config):
-    dico = {}
-    for co_name, subset in config["countries"].items():
-        to_rename = _load_supply_energy_dico(config, load=False, countries=subset)
-        for k, v in to_rename.items():
-            dico[f"{co_name}_{k}"] = v
-    return dico
-
-
-def load_supply_heat_be(config):
-    dico = _load_supply_energy_dico(config, load=False, countries=["BE"])
-    data = pd.DataFrame()
-    df = {}
-
-    for k, v in dico.items():
-        to_add = v.copy()
-        to_add['carrier'] = HEAT_RENAMER.get(k)
-        data = pd.concat([data, to_add], ignore_index=True)
-
-    for heat in ["dec_heat", "cent_heat"]:
-        df[heat] = (
-            data.loc[data.carrier.isin([heat])]
-            .drop(columns="carrier")
-            .groupby('sector').sum()
-            .reset_index()
-        )
-    return df
 
 
 # %% Costs load
@@ -331,7 +218,85 @@ def load_costs_segments(config):
     return _load_costs(config, per_segment=True)
 
 
-# %% Non standard loads
+#%%Supply energy
+def _load_supply_energy_dico(config, load=True, countries=None):
+    """
+    Allow to split _load_supply_energy into its carriers for it
+    to be written tab by tab
+
+    """
+    dico = {}
+    supply_energy_carrier = (
+        _load_supply_energy(config, load=load, countries=countries)
+        .carrier
+        .replace({"AC": "electricity", "low voltage": "electricity"})
+        .unique()
+    )
+    # TODO add h2 and gas imports and exports
+    for ca in supply_energy_carrier:
+        # TODO : should we move the HV/LV/imports/exports to the calling function to keep this function read only (no modifications) ?
+        if ca == "electricity":
+            df_ac = _load_supply_energy(config, load=load, countries=countries, carriers="AC")
+            df_low = _load_supply_energy(config, load=load, countries=countries, carriers="low voltage")
+            df = pd.concat([df_ac, df_low])
+            del df["carrier"]
+            df = df.groupby(by="sector").sum().reset_index()
+
+            if not (load) and countries:
+                df_imp = _load_imp_exp(config, export=False, countries=countries, carriers='elec',
+                                       years=config["scenario"]["planning_horizons"])
+                df_exp = _load_imp_exp(config, export=True, countries=countries, carriers='elec',
+                                       years=config["scenario"]["planning_horizons"])
+                df_net_imp = (df_imp[config["scenario"]["planning_horizons"]] - df_exp[
+                    config["scenario"]["planning_horizons"]]).sum()
+                df = pd.concat([df, pd.DataFrame(['Net Imports'] + df_net_imp.values.tolist(), index=df.columns).T])
+            df = pd.concat([pd.DataFrame(df.sum(axis=0).values.tolist(), index=df.columns).T, df])
+            df.iloc[0, 0] = 'Total'
+            df.drop(df.query('sector == "V2G"').index, inplace=True)
+            dico[ca] = df
+        elif ca == "oil":
+            if load and countries is not None:  # if load and countries exist
+                df_eu_load = _load_nodal_oil(config, countries)
+                df_c_load = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
+                dico[ca] = pd.concat([df_c_load, df_eu_load])
+            else:
+                dico[ca] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
+        else:
+            dico[ca] = _load_supply_energy(config, load=load, countries=countries, carriers=ca)
+
+    for heat in ['dec_heat', 'cent_heat']:
+        carriers = [k for k in list(dico.keys()) if HEAT_RENAMER.get(k) == heat]
+        df = pd.DataFrame()
+        for d in carriers:
+            df = pd.concat([df, dico[d]])
+            dico.pop(d)
+        df = (df.groupby('sector')
+              .agg({c: 'sum' if c in config['years_str'] else 'first' for c in df.columns})
+              .drop('carrier', axis=1))
+        dico[heat] = df
+    return dico
+
+
+def _load_imp_exp(config, export=True, countries=None, carriers=None, years=None):
+    """
+    Return the imports or export of a subset of countries per country external to the subset
+    for a given carrier. Since the network imports/exports are zero-sum, the exports can be obtained
+    from the imports matrix
+
+    """
+    imp_exp = []
+    df = pd.read_csv(Path(config["csvs"], "imports_exports.csv"), header=0)
+    for y in years:
+        imports_exports = 'exports' if export else 'imports'
+        df_carrier = query_imp_exp(df.copy(), carriers, countries, y, imports_exports)
+        imp_exp.append(df_carrier.rename(y))
+    imp_exp = pd.concat(imp_exp, axis=1)
+    # TODO treat the display of exports/imports that does not specifically have the same countries displayed
+    return (
+        imp_exp.loc[~(imp_exp == 0).all(axis=1)].reset_index()
+    )
+
+
 def load_imports_exports(config):
     """
     This function loads the imports and exports per countries susbet with the
@@ -358,6 +323,46 @@ def load_imports_exports(config):
                                                                countries=subset, carriers=ca,
                                                                years=config["scenario"]["planning_horizons"])
     return dico
+
+
+def load_load_sectors(config):
+    dico = {}
+    for co_name, subset in config["countries"].items():
+        to_rename = _load_supply_energy_dico(config, load=True, countries=subset)
+        for k, v in to_rename.items():
+            dico[f"{co_name}_{k}"] = v
+    return dico
+
+
+def load_supply_sectors(config):
+    dico = {}
+    for co_name, subset in config["countries"].items():
+        to_rename = _load_supply_energy_dico(config, load=False, countries=subset)
+        for k, v in to_rename.items():
+            dico[f"{co_name}_{k}"] = v
+    return dico
+
+
+def load_supply_heat_be(config):
+    dico = _load_supply_energy_dico(config, load=False, countries=["BE"])
+    data = pd.DataFrame()
+    df = {}
+
+    for k, v in dico.items():
+        to_add = v.copy()
+        to_add['carrier'] = HEAT_RENAMER.get(k)
+        data = pd.concat([data, to_add], ignore_index=True)
+
+    for heat in ["dec_heat", "cent_heat"]:
+        df[heat] = (
+            data.loc[data.carrier.isin([heat])]
+            .drop(columns="carrier")
+            .groupby('sector').sum()
+            .reset_index()
+        )
+    return df
+
+# %% Non standard loads
 
 
 def load_gas_phase_out(config):

@@ -11,9 +11,9 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-import numpy as np
-from scripts.graph_extraction_utils import _load_nodal_oil
+
 from scripts.graph_extraction_utils import HEAT_RENAMER
+from scripts.graph_extraction_utils import _load_nodal_oil
 from scripts.graph_extraction_utils import _load_supply_energy
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,17 @@ def load_supply_energy_df(config, load=True):
     df = pd.concat(dfl)
     return df
 
+def load_res_potentials(config):
+    df = pd.read_csv(Path(config["csvs"], "res_potentials.csv"),header=0)
+    return (
+        df.loc[:,['carrier','region',config['years_str'][-1]]]
+            .rename(columns={'region':'country',config['years_str'][-1]:'Potential [GW]'})
+            .pivot(columns='carrier',index='country',values='Potential [GW]')
+            .fillna(0)
+            .reindex(columns= ['hydro','ror','offwind','onwind','solar', 'solar thermal'])
+            .reset_index()
+            )
+
 def load_imports_exports(config):
     """
     This function loads the imports and exports for all countries, carriers and years
@@ -74,22 +85,29 @@ def load_imports_exports(config):
     at streamlit level.
 
     """
-    
+
     return pd.read_csv(Path(config["csvs"], "imports_exports.csv"))
 
+
 def load_load_temporal(config):
-    load = _load_supply_energy(config, load=True, aggregate = True, temporal= True)
+    load = _load_supply_energy(config, load=True, aggregate=True, temporal=True)
     return load
 
+
 def load_supply_temporal(config):
-    supply = _load_supply_energy(config, load=False, aggregate = True, temporal= True)
-    return  supply
+    supply = _load_supply_energy(config, load=False, aggregate=True, temporal=True)
+    return supply
+
+
+def load_res_temporal(config):
+    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"),header=0)
+
 
 def load_generation_profiles(config):
-    
-    return pd.read_csv(Path(config["csvs"], "generation_profiles.csv")) 
+    return pd.read_csv(Path(config["csvs"], "generation_profiles.csv"))
 
-#%% Load main
+
+# %% Load main
 def load_data_st(config):
     logger.info(f"Exporting data to streamlit")
 
@@ -98,7 +116,9 @@ def load_data_st(config):
         "supply_temporal",
         "supply_energy_df",
         "imports_exports",
-        "generation_profiles"
+        "generation_profiles",
+        "res_temporal",
+        "res_potentials"
     ]
 
     with pd.ExcelWriter(Path(config["path"]["analysis_path"], "graph_extraction_st.xlsx")) as xl:

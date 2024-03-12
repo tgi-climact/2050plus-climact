@@ -10,8 +10,10 @@ gurobi.log
 .vscode
 .idea
 .DS_Store
+.spyproject
 
 /bak
+/analysis*
 /resources
 /resources*
 /results

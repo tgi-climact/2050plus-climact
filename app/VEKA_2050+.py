@@ -1,6 +1,7 @@
 import streamlit as st
 
-from st_common import st_page_config, st_side_bar
+from st_common import st_page_config
+from st_common import st_side_bar
 
 st_page_config(layout="wide")
 st_side_bar()
@@ -19,4 +20,3 @@ st.markdown(
     - Balancing
     - Costs
 """)
-
