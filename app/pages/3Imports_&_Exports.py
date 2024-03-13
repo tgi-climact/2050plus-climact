@@ -17,11 +17,8 @@ st.title("Imports and exports per carrier")
 @st.cache_data(show_spinner="Retrieving data ...")
 def get_data(scenario):
     df = (
-        pd.read_excel(
-            Path(network_path,
-                 scenario_dict[scenario]["path"],
-                 "graph_extraction_st.xlsx"),
-            sheet_name="imports_exports",
+        pd.read_csv(
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "imports_exports"),
             header=0
         )
     )

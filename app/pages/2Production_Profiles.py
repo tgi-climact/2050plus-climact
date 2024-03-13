@@ -19,11 +19,8 @@ st.text("Data displayed are for EU27 + TYNDP.")
 @st.cache_data(show_spinner="Retrieving data ...")
 def get_data(scenario, year):
     return (
-        pd.read_excel(
-            Path(network_path,
-                 scenario_dict[scenario]["path"],
-                 "graph_extraction_st.xlsx"),
-            sheet_name="supply_temporal_" + year,
+        pd.read_csv(
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "supply_temporal_" + year),
             header=0
         )
     )

@@ -133,19 +133,20 @@ def load_data_st(config):
         "power_capacities"
     ]
 
-    with pd.ExcelWriter(Path(config["path"]["analysis_path"], "graph_extraction_st.xlsx")) as xl:
-        for output in outputs:
-            o = globals()["load_" + output](config)
-            if isinstance(o, pd.DataFrame):
-                o.to_excel(xl, sheet_name=output, index=False)
-            elif isinstance(o, dict):
-                for k, v in o.items():
-                    # Determine sheet name
-                    sheet_name = output + "_" + k
-                    max_sheet_name_length = 31  # Limit sheet name to 31 char to enhance compatibility support (Excel)
-                    overflow_char = ".."
-                    sheet_name = (sheet_name[:max_sheet_name_length - len(overflow_char)] + overflow_char) \
-                        if len(sheet_name) > max_sheet_name_length - len(overflow_char) else sheet_name
-                    v.to_excel(xl, sheet_name=sheet_name, index=False)
-            else:
-                logging.warning(f"Given output for {output} is not mapped out to output file.")
+    dir = Path(config["path"]["analysis_path"], "graph_extraction_st")
+    dir.mkdir(parents=True, exist_ok=True)
+    for output in outputs:
+        o = globals()["load_" + output](config)
+        if isinstance(o, pd.DataFrame):
+            o.to_csv(Path(dir, output), index=False)
+        elif isinstance(o, dict):
+            for k, v in o.items():
+                # Determine sheet name
+                sheet_name = output + "_" + k
+                max_sheet_name_length = 31  # Limit sheet name to 31 char to enhance compatibility support (Excel)
+                overflow_char = ".."
+                sheet_name = (sheet_name[:max_sheet_name_length - len(overflow_char)] + overflow_char) \
+                    if len(sheet_name) > max_sheet_name_length - len(overflow_char) else sheet_name
+                v.to_csv(Path(dir, sheet_name), index=False)
+        else:
+            logging.warning(f"Given output for {output} is not mapped out to output file.")

@@ -17,11 +17,8 @@ st.title("Renewable production per carrier")
 @st.cache_data(show_spinner="Retrieving data ...")
 def get_df(scenario, year):
     return (
-        pd.read_excel(
-            Path(network_path,
-                 scenario_dict[scenario]["path"],
-                 "graph_extraction_st.xlsx"),
-            sheet_name="res_temporal_" + year,
+        pd.read_csv(
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "res_temporal_" + year),
             header=0,
         )
     )

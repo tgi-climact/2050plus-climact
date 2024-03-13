@@ -17,11 +17,8 @@ st.title("Renewable production potentials")
 @st.cache_data(show_spinner="Retrieving data ...")
 def get_df(scenario):
     return (
-        pd.read_excel(
-            Path(network_path,
-                 scenario_dict[scenario]["path"],
-                 "graph_extraction_st.xlsx"),
-            sheet_name="res_potentials",
+        pd.read_csv(
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "res_potentials"),
             header=0,
         )
     )
