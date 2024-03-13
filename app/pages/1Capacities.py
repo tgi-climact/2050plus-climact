@@ -19,7 +19,7 @@ st.text("Power production units are units able to supply electricity ")
 def get_df(scenario):
     return (
         pd.read_csv(
-            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "power_capacities"),
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "power_capacities.csv"),
             header=0,
         )
     )

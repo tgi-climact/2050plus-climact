@@ -18,7 +18,7 @@ st.title("Imports and exports per carrier")
 def get_data(scenario):
     df = (
         pd.read_csv(
-            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "imports_exports"),
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "imports_exports.csv"),
             header=0
         )
     )

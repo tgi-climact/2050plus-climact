@@ -18,7 +18,7 @@ st.title("Renewable production potentials")
 def get_df(scenario):
     return (
         pd.read_csv(
-            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "res_potentials"),
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "res_potentials.csv"),
             header=0,
         )
     )

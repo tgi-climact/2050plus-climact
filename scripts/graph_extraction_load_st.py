@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import pandas as pd
+from scripts.graph_extraction_utils import CLIP_VALUE_TWH
 from scripts.graph_extraction_utils import HEAT_RENAMER
 from scripts.graph_extraction_utils import _load_nodal_oil
 from scripts.graph_extraction_utils import _load_supply_energy
@@ -95,7 +96,11 @@ def load_load_temporal(config):
     load_raw = _load_supply_energy(config, load=True, aggregate=True, temporal=True)
     load = {}
     for y in [c for c in load_raw.columns if re.match(r"[0-9]{4}", c)]:
-        load[y] = load_raw.pivot_table(values=y, index=["carrier", "sector"], columns="snapshot").reset_index()
+        load_i = load_raw.pivot_table(values=y, index=["carrier", "sector"], columns="snapshot")
+        load_i.columns = pd.to_datetime(pd.DatetimeIndex(load_i.columns, name='snapshots').strftime(f'{y}-%m-%d-%H'))
+        load_i = load_i.loc[load_i.sum(axis=1) / 1e3 > CLIP_VALUE_TWH, :]
+        load_i = load_i.loc[(load_i.std(axis=1) / load_i.mean(axis=1)).sort_values().index]
+        load[y] = load_i.reset_index().T.reset_index()
     return load
 
 
@@ -103,7 +108,11 @@ def load_supply_temporal(config):
     supply_raw = _load_supply_energy(config, load=False, aggregate=True, temporal=True)
     supply = {}
     for y in [c for c in supply_raw.columns if re.match(r"[0-9]{4}", c)]:
-        supply[y] = supply_raw.pivot_table(values=y, index=["carrier", "sector"], columns="snapshot").reset_index()
+        supply_i = supply_raw.pivot_table(values=y, index=["carrier", "sector"], columns="snapshot")
+        supply_i.columns = pd.to_datetime(pd.DatetimeIndex(supply_i.columns, name='snapshots').strftime(f'{y}-%m-%d-%H'))
+        supply_i = supply_i.loc[supply_i.sum(axis=1) / 1e3 > CLIP_VALUE_TWH, :]
+        supply_i = supply_i.loc[(supply_i.std(axis=1) / supply_i.mean(axis=1)).sort_values().index]
+        supply[y] = supply_i.reset_index().T.reset_index()
     return supply
 
 
@@ -111,7 +120,9 @@ def load_res_temporal(config):
     res_raw = pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"), header=0)
     res = {}
     for y in res_raw["year"].unique():
-        res[str(y)] = res_raw.query("year==@y").drop("year", axis=1)
+        res_i = res_raw.query("year==@y").drop("year", axis=1)
+        res_i.index = pd.to_datetime(pd.DatetimeIndex(res_i.index, name='snapshots').strftime(f'{y}-%m-%d-%H'))
+        res[str(y)] = res_i
     return res
 
 
@@ -138,7 +149,7 @@ def load_data_st(config):
     for output in outputs:
         o = globals()["load_" + output](config)
         if isinstance(o, pd.DataFrame):
-            o.to_csv(Path(dir, output), index=False)
+            o.to_csv(Path(dir, output + ".csv"), index=False)
         elif isinstance(o, dict):
             for k, v in o.items():
                 # Determine sheet name
@@ -147,6 +158,6 @@ def load_data_st(config):
                 overflow_char = ".."
                 sheet_name = (sheet_name[:max_sheet_name_length - len(overflow_char)] + overflow_char) \
                     if len(sheet_name) > max_sheet_name_length - len(overflow_char) else sheet_name
-                v.to_csv(Path(dir, sheet_name), index=False)
+                v.to_csv(Path(dir, sheet_name + ".csv"), index=False)
         else:
             logging.warning(f"Given output for {output} is not mapped out to output file.")

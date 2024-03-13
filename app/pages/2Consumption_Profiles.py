@@ -20,9 +20,10 @@ st.text("Data displayed are for EU27 + TYNDP.")
 def get_data(scenario, year):
     return (
         pd.read_csv(
-            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "load_temporal_" + year),
-            header=0
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "load_temporal_" + year + ".csv"),
+            header=[1, 2]
         )
+        .set_index(("carrier", "sector"))
     )
 
 
@@ -40,13 +41,8 @@ with col1:
 data = get_data(scenario, year)
 
 with col2:
-    carrier = st.selectbox('Choose your carrier:', data["carrier"].unique(), index=3)
-df = data.query("carrier==@carrier").drop("carrier", axis=1).set_index("sector")
-
-df.columns = pd.to_datetime(pd.DatetimeIndex(df.columns, name='snapshots').strftime(f'{year}-%m-%d-%H'))
-df = df.T
-df = df[(df.std() / df.mean()).sort_values().index]
-df = df.loc[:, df.sum() / 1e3 > CLIP_VALUE_TWH]
+    carrier = st.selectbox('Choose your carrier:', data.columns.get_level_values(0).unique(), index=3)
+df = data[carrier]
 
 fig = px.area(
     df,

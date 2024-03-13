@@ -18,7 +18,7 @@ st.title("Renewable production per carrier")
 def get_df(scenario, year):
     return (
         pd.read_csv(
-            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "res_temporal_" + year),
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "res_temporal_" + year + ".csv"),
             header=0,
         )
     )
@@ -63,7 +63,6 @@ carrier = st.selectbox('Choose your carrier:', list(df.index.unique()))
 if carrier != 'all':
     df = df.query("carrier in @carrier")
 df = df.sum(axis=0).rename(carrier).to_frame()
-df.index = pd.to_datetime(pd.DatetimeIndex(df.index, name='snapshots').strftime(f'{year}-%m-%d-%H'))
 
 
 fig = px.area(

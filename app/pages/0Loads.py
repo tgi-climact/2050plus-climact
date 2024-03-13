@@ -18,7 +18,7 @@ st.title("Loads per carrier")
 def get_data(scenario):
     df = (
         pd.read_csv(
-            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "supply_energy_df"),
+            Path(network_path, scenario_dict[scenario]["path"], "graph_extraction_st", "supply_energy_df.csv"),
             header=0
         )
     )
