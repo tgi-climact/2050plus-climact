@@ -35,19 +35,18 @@ st.markdown("NB : Power production units are units able to supply electricity ")
 
 st.header("Installed capacities per country")
 
-
 all = ['EU27 + TYNDP']
-country = st.selectbox('Choose your country:', all+list(df.country.unique()))
-if not('EU27 + TYNDP' in country):
+country = st.selectbox('Choose your country:', all + list(df.country.unique()))
+if not ('EU27 + TYNDP' in country):
     df = df.query("country in @country")
 
 df = (
-      df.drop(columns=['country'])
-      .groupby(['sector'])
-      .sum(numeric_only=True)
-      .rename(index={"sector":"Technologies"})
-      )
-    
+    df.drop(columns=['country'])
+    .groupby(['sector'])
+    .sum(numeric_only=True)
+    .rename(index={"sector": "Technologies"})
+)
+
 fig = px.bar(
     df,
     title="Power production installed capacities [GW]",
@@ -70,16 +69,15 @@ st.divider()
 
 st.header("Split of capacities per country")
 
-
 df_bar = data.copy()
 technology = st.selectbox('Choose your technology:', list(df_bar.sector.unique()))
 
 df_bar = (df_bar
           .query("sector == @technology")
-           .drop(columns=['sector'])
-            .set_index('country')
-           # .T
-           .rename_axis("Investment year")
+          .drop(columns=['sector'])
+          .set_index('country')
+          # .T
+          .rename_axis("Investment year")
           )
 
 fig_bar = px.bar(
@@ -94,7 +92,7 @@ fig_bar.update_xaxes(title_text='Countries')
 fig_bar.update_traces(hovertemplate="%{y:,.1f}",
                       )
 fig_bar.update_layout(hovermode="x unified",
-                  legend_title_text='Technologies')
+                      legend_title_text='Technologies')
 # df_tab = (df_tab
 #           .style
 #           .format(precision=2, thousands=",", decimal='.')
@@ -102,4 +100,3 @@ fig_bar.update_layout(hovermode="x unified",
 
 st.plotly_chart(fig_bar
                 , use_container_width=True)
-

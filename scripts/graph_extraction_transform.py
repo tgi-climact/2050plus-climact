@@ -14,7 +14,6 @@ import matplotlib as mpl
 import pandas as pd
 import plotly.express as px
 from matplotlib import pyplot as plt
-
 from scripts.graph_extraction_utils import CLIP_VALUE_TWH
 from scripts.graph_extraction_utils import ELEC_RENAMER
 from scripts.graph_extraction_utils import HEAT_RENAMER
@@ -89,10 +88,10 @@ RENAMER = {
     "services rural solar thermal collector": "solar thermal",
     "services urban decentral solar thermal collector": "solar thermal",
     "urban central solar thermal collector": "solar thermal",
-    
+
     # Solid biomass CHP
-    "urban central solid biomass CHP" : "solid biomass CHP",
-    "urban central solid biomass CHP CC" : "solid biomass CHP",
+    "urban central solid biomass CHP": "solid biomass CHP",
+    "urban central solid biomass CHP CC": "solid biomass CHP",
 
 }
 
@@ -101,7 +100,7 @@ def extract_loads(n):
     profiles = {}
     for y, ni in n.items():
         loads_t = ni.loads_t.p.T
-        loads_t.index.names = ['Load']
+        loads_t.index.names = ["Load"]
         loads_t["country"] = ni.buses.loc[ni.loads.loc[loads_t.index].bus].country.values
         loads_t.reset_index(inplace=True)
         loads_t["Load"].mask(loads_t["Load"].str.contains("NH3"), "NH3 for sectors", inplace=True)
@@ -113,9 +112,9 @@ def extract_loads(n):
         profiles[y] = loads_t
 
     df = pd.concat(profiles, names=["Years"])
-    df.insert(0, column="units", value='MW_e')
-    df.loc[(slice(None), slice(None), 'H2 for sectors'), 'units'] = 'MW_lhv,h2'
-    df.loc[(slice(None), slice(None), 'NH3 for sectors'), 'units'] = 'MW_lhv,nh3'
+    df.insert(0, column="units", value="MW_e")
+    df.loc[(slice(None), slice(None), "H2 for sectors"), "units"] = "MW_lhv,h2"
+    df.loc[(slice(None), slice(None), "NH3 for sectors"), "units"] = "MW_lhv,nh3"
     return df
 
 
@@ -195,11 +194,12 @@ def extract_res_potential(n):
     rx = re.compile("([A-z]+)[0-9]+\s[0-9]+\s([A-z\-\s]+)-*([0-9]*)")
 
     for y, ni in n.items():
-        df = pd.concat([ni.df("Generator"),ni.df("Link"),ni.df("StorageUnit")])[["p_nom_max", "p_nom_opt"]].reset_index()
+        df = pd.concat([ni.df("Generator"), ni.df("Link"), ni.df("StorageUnit")])[
+            ["p_nom_max", "p_nom_opt"]].reset_index()
         df[["region", "carrier", "build_year"]] = df["index"].str.extract(rx)
         df["carrier"] = df["carrier"].str.rstrip("-").replace(RENAMER)
         df["planning horizon"] = y
-        df = df.query('carrier in ["onwind", "offwind", "solar", "solar thermal", "ror", "hydro", "PHS"]')
+        df = df.query("carrier in ['onwind', 'offwind', 'solar', 'solar thermal', 'ror', 'hydro', 'PHS']")
         dfx.append(
             df.groupby(["planning horizon", "carrier", "build_year", "region"]).sum(numeric_only=True) / 1e3
         )  # GW      
@@ -214,7 +214,7 @@ def extract_res_potential(n):
                     str)  # selects all rows whose build_year index has a smaller value than the planning_horizon index
                 , "p_nom_opt"]  # if the year of construction is before planning horizon, this means that the generator has already been installed. However, what was installed = p_nom_opt
             .groupby(["planning horizon", "carrier", "region"]).sum()
-        # all the lines that have the sames indexes ("planning horizon", "carrier", "region") but a different 'build_year' will be summed based on p_nom_opt
+            # all the lines that have the sames indexes ("planning horizon", "carrier", "region") but a different "build_year" will be summed based on p_nom_opt
         ),
         (
             dfx.loc[
@@ -235,43 +235,47 @@ def extract_res_potential(n):
     return df_potential
 
 
-def stats(config, n, carriers_renamer):    
-    inst_capa_elec_node = []
-    
-    sector_mapping = pd.read_csv(
-        Path(config["path"]["analysis_path"].resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2],
-        header=0).dropna()
-    sector_mapping = sector_mapping.reset_index()
-    sector_mapping['carrier'] = sector_mapping['carrier'].map(lambda x: carriers_renamer.get(x, x))
-    sector_mapping['item'] = sector_mapping['item'].map(remove_prefixes)
-    sector_mapping.loc[sector_mapping.query("component == 'links'").index, 'item'] = sector_mapping.loc[sector_mapping.query("component == 'links'").index, 'item'].apply(lambda x : x[:-1])
-    sector_mapping.component = sector_mapping.component.apply({"generators":"Generator", "storage_units":"StorageUnit", "links":"Link"}.get)
-    sector_mapping = sector_mapping.query('carrier=="elec"').groupby(["carrier", "component", "item"]).first()
-    
-    for y, ni in n.items():
-        stats = ni.statistics
-        inst_capa_elec_node_i = stats.optimal_capacity(bus_carrier=['AC','low voltage'],groupby=fun)
-
-        inst_capa_elec_node_i = (inst_capa_elec_node_i
-        .rename(y)
-        .reset_index()
-        .rename(columns={'carrier':'item', 'bus':'country'})
-        .merge(sector_mapping.droplevel('carrier'), left_on=["component", "item"], right_index=True, how="left")
-        .apply({"country":lambda x : x[:2], "sector":lambda x:x, y:lambda x:x})
-        .groupby(['country','sector'])
-        .sum(numeric_only=True)
-        /1e3 #GW
-        )
-     
-        inst_capa_elec_node.append(inst_capa_elec_node_i)
-
-    return pd.concat(inst_capa_elec_node,axis=1)
-
-def fun(n,c,nice_names= True):
+def fun(n, c, nice_names=True):
     if c in n.one_port_components:
         return [n.df(c).bus, n.df(c).carrier]
     else:
         return [n.df(c).bus1, n.df(c).carrier]
+
+
+def stats(config, n, carriers_renamer):
+    inst_capa_elec_node = []
+
+    sector_mapping = pd.read_csv(
+        Path(config["path"]["analysis_path"].resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2],
+        header=0).dropna()
+    sector_mapping = sector_mapping.reset_index()
+    sector_mapping["carrier"] = sector_mapping["carrier"].map(lambda x: carriers_renamer.get(x, x))
+    sector_mapping["item"] = sector_mapping["item"].map(remove_prefixes)
+    sector_mapping.loc[sector_mapping.query("component == 'links'").index, "item"] = sector_mapping.loc[
+        sector_mapping.query("component == 'links'").index, "item"].apply(lambda x: x[:-1])
+    sector_mapping.component = sector_mapping.component.apply(
+        {"generators": "Generator", "storage_units": "StorageUnit", "links": "Link"}.get)
+    sector_mapping = sector_mapping.query("carrier=='elec'").groupby(["carrier", "component", "item"]).first()
+
+    for y, ni in n.items():
+        stats = ni.statistics
+        inst_capa_elec_node_i = stats.optimal_capacity(bus_carrier=["AC", "low voltage"], groupby=fun)
+
+        inst_capa_elec_node_i = (inst_capa_elec_node_i
+                                 .rename(y)
+                                 .reset_index()
+                                 .rename(columns={"carrier": "item", "bus": "country", "bus1": "country"})
+                                 .merge(sector_mapping.droplevel("carrier"), left_on=["component", "item"],
+                                        right_index=True, how="left")
+                                 .apply({"country": lambda x: x[:2], "sector": lambda x: x, y: lambda x: x})
+                                 .groupby(["country", "sector"])
+                                 .sum(numeric_only=True)
+                                 / 1e3  # GW
+                                 )
+
+        inst_capa_elec_node.append(inst_capa_elec_node_i)
+
+    return pd.concat(inst_capa_elec_node, axis=1)
 
 
 def extract_res_statistics(n):
@@ -279,7 +283,7 @@ def extract_res_statistics(n):
     for y, ni in n.items():
         res = ni.generators.copy().query("carrier in @RES")
         res_t = ni.generators_t.p[res.index]
-        res['year'] = y
+        res["year"] = y
         cf = (res_t / (res["p_nom_opt"])).mean()
         p_tot = res_t.sum() * ni.snapshot_weightings.generators.mean()
         opex = p_tot * ni.generators.marginal_cost
@@ -298,32 +302,35 @@ def extract_res_statistics(n):
             columns={"carrier": "LCOE"})
         res = res.reset_index().merge(LCOE, on="carrier").set_index(["Generator", "year"])
         res = res.loc[:,
-              ["carrier", 'bus', "capital_cost", "marginal_cost", "p_nom_opt", "build_year", "p_nom", "cf", 'p_tot',
+              ["carrier", "bus", "capital_cost", "marginal_cost", "p_nom_opt", "build_year", "p_nom", "cf", "p_tot",
                "p_nom_max", "LCOE", "opex", "capex", "totex"]]
         res = res.sort_values(by="carrier")
         df.append(res)
 
     return pd.concat(df)
 
+
 def extract_res_temporal_energy(config, n):
+    HYDRO
     df = []
     for y, ni in n.items():
-        units = pd.concat([ni.generators,ni.storage_units,ni.links])
-        units_t = pd.concat([ni.generators_t.p,ni.storage_units_t.p,ni.links_t.p1],axis=1)
+        units = pd.concat([ni.generators, ni.storage_units, ni.links])
+        units_t = pd.concat([ni.generators_t.p, ni.storage_units_t.p, ni.links_t.p1], axis=1)
         res = units.query("carrier in @RES or carrier in @HYDRO or " \
                           "carrier.str.contains('solar thermal') or carrier.str.contains('solid biomass CHP')")
         res_t = units_t[res.index]
-        res.loc[res.bus.isna(),"bus"] = res.loc[res.bus.isna(),"bus1"]
-        res['country'] = res.bus.map(renamer_to_country)
-        res['carrier'] = res.carrier.apply(remove_prefixes).apply(lambda x : RENAMER.get(x,x))
-        
-        res_t.columns = res_t.columns.map(lambda x :( res.loc[x].carrier,res.loc[x].country))
-        res_t.rename_axis(['carrier','country'],axis=1,inplace=True)
-        res_t = res_t.groupby(['carrier','country'],axis=1).sum()
-        res_t.index = pd.to_datetime(pd.DatetimeIndex(res_t.index.values,name='snapshots').strftime(f'{y}-%m-%d-%H'))
+        res.loc[res.bus.isna(), "bus"] = res.loc[res.bus.isna(), "bus1"]
+        res["country"] = res.bus.map(renamer_to_country)
+        res["carrier"] = res.carrier.apply(remove_prefixes).apply(lambda x: RENAMER.get(x, x))
+
+        res_t.columns = res_t.columns.map(lambda x: (res.loc[x].carrier, res.loc[x].country))
+        res_t.rename_axis(["carrier", "country"], axis=1, inplace=True)
+        res_t = res_t.groupby(["carrier", "country"], axis=1).sum()
+        res_t.index = pd.to_datetime(pd.DatetimeIndex(res_t.index.values, name="snapshots").strftime(f"{y}-%m-%d-%H"))
         df.append(res_t)
-    df = pd.concat(df)/1e3 #GW
+    df = pd.concat(df) / 1e3  # GW
     return df.T
+
 
 def extract_country_capacities(config, n):
     # TODO : dictionnary is useless here
@@ -349,7 +356,7 @@ def extract_country_capacities(config, n):
     dico = {"generators": "_extraction", "stores": "_stores"}
     for d, suffix in dico.items():
         to_modify = df_capa.query(
-            'unit_type in [@d] and carrier in ["gas", "oil", "coal/lignite", "uranium", "solid biomass"]').index
+            "unit_type in [@d] and carrier in ['gas', 'oil', 'coal/lignite', 'uranium', 'solid biomass']").index
         df_capa.loc[to_modify, ["carrier"]] += suffix
 
     df_capa = df_capa.groupby(["unit_type", "node", "carrier"]).sum().reset_index(["carrier", "unit_type"])
@@ -373,11 +380,11 @@ def calculate_imp_exp(country_map, transmission_t, y):
     table_li_co = pd.DataFrame([], index=country_map.index)
     other_bus = pd.DataFrame([], index=transmission_t.columns)
     mat_imp = pd.DataFrame([], columns=countries, index=countries).rename_axis(
-        index='countries')
+        index="countries")
     mat_exp = pd.DataFrame([], columns=countries, index=countries).rename_axis(
-        index='countries')
-    mat_imp['year'] = y
-    mat_exp['year'] = y
+        index="countries")
+    mat_imp["year"] = y
+    mat_exp["year"] = y
 
     for co in countries:
         if "hist" != y:
@@ -416,10 +423,10 @@ def extract_transmission(n, carriers=["AC", "DC"],
                 if "hist" != y:
                     transmission_t.append(ni.lines_t.p0 * 8760 / len(ni.snapshots))
             else:
-                transmission.append(ni.links.query('carrier == @ca'))
+                transmission.append(ni.links.query("carrier == @ca"))
                 if "hist" != y:
                     transmission_t.append(
-                        ni.links_t.p0[ni.links.query('carrier == @ca').index] * 8760 / len(ni.snapshots))
+                        ni.links_t.p0[ni.links.query("carrier == @ca").index] * 8760 / len(ni.snapshots))
 
         transmission = pd.concat(transmission)
         if "hist" != y:
@@ -437,7 +444,7 @@ def extract_transmission(n, carriers=["AC", "DC"],
                                    )
 
             mono_co[co] = (
-                transmission.loc[(transmission.index.str.contains('->')) & (transmission.index.str.contains('<'))]
+                transmission.loc[(transmission.index.str.contains("->")) & (transmission.index.str.contains("<"))]
                 .query("@co == @country_map.bus0")
                 .groupby("carrier")
                 .p_nom_opt.sum()
@@ -446,24 +453,24 @@ def extract_transmission(n, carriers=["AC", "DC"],
             if len(mono_co[co]):
                 transmission_co[co].loc[mono_co[co].index] -= mono_co[co]
 
-        transmission_co = pd.DataFrame.from_dict(transmission_co, orient='columns').fillna(0) / 1e3
+        transmission_co = pd.DataFrame.from_dict(transmission_co, orient="columns").fillna(0) / 1e3
         capacities_countries.append(pd.concat({y: transmission_co}, names=["Year"]))
 
         transmission_total = pd.DataFrame(transmission.groupby("carrier").p_nom_opt.sum()) / 1e3
-        capacities.append(transmission_total.rename(columns={'p_nom_opt': y}))
+        capacities.append(transmission_total.rename(columns={"p_nom_opt": y}))
 
         # imports/exports
         mat_imp, mat_exp, table_li_co, _ = calculate_imp_exp(country_map, transmission_t, y)
         if "hist" != y:
-            imports.append(mat_imp.reset_index().set_index(['countries', 'year']))
-            exports.append(mat_exp.reset_index().set_index(['countries', 'year']))
+            imports.append(mat_imp.reset_index().set_index(["countries", "year"]))
+            exports.append(mat_exp.reset_index().set_index(["countries", "year"]))
 
     df = pd.concat(capacities, axis=1)
     df_co = pd.concat(capacities_countries, axis=0)
     df_imp = pd.concat(imports, axis=0).fillna(0)
-    df_imp['imports_exports'] = 'imports'
+    df_imp["imports_exports"] = "imports"
     df_exp = pd.concat(exports, axis=0).fillna(0)
-    df_exp['imports_exports'] = 'exports'
+    df_exp["imports_exports"] = "exports"
 
     df["units"] = df.index.map(units)
     df_co["units"] = df_co.index.get_level_values(level=1).map(units)
@@ -475,7 +482,7 @@ def extract_transmission(n, carriers=["AC", "DC"],
 
 def extract_nodal_costs(config):
     # Todo : add handling of multiple runs
-    df = (pd.read_csv(Path(config["path"]["analysis_path"], 'results', 'csvs', 'nodal_costs.csv'),
+    df = (pd.read_csv(Path(config["path"]["analysis_path"], "results", "csvs", "nodal_costs.csv"),
                       index_col=[0, 1, 2, 3],
                       skiprows=3,
                       header=0)
@@ -485,32 +492,32 @@ def extract_nodal_costs(config):
                            "level_2": "country",
                            "level_3": "carrier"})
           )
-    df['country'] = df['country'].str[:2].fillna('EU')
+    df["country"] = df["country"].str[:2].fillna("EU")
     fuels = df.query(
         "carrier in ['gas','oil','coal','lignite','uranium'] and cost == 'marginal' and type == 'generators'").index
     biomass = df.query("carrier.str.contains('biomass') and cost == 'marginal' and type == 'stores'").index
-    df.loc[fuels.union(biomass), 'cost'] = 'fuel'
-    df = df.set_index(['type', 'cost', 'country', 'carrier'])
-    df = df.fillna(0).groupby(['type', 'cost', 'country', 'carrier']).sum()
+    df.loc[fuels.union(biomass), "cost"] = "fuel"
+    df = df.set_index(["type", "cost", "country", "carrier"])
+    df = df.fillna(0).groupby(["type", "cost", "country", "carrier"]).sum()
     df = df.loc[~df.apply(lambda x: x < 1e3).all(axis=1)]
     df.insert(0, column="units", value="Euro")
     return df
 
 
-def extract_marginal_prices(n, carrier_list=['AC']):
+def extract_marginal_prices(n, carrier_list=["AC"]):
     df = []
     for ca in carrier_list:
-        prices = pd.DataFrame([]).rename_axis(index='countries')
+        prices = pd.DataFrame([]).rename_axis(index="countries")
         for y, ni in n.items():
-            if 'hist' != y:
+            if "hist" != y:
                 price_y = (
                     ni.buses_t.marginal_price[ni.buses.query("carrier == @ca ").index]
                     .mean()
                     .groupby(lambda x: x[:2]).mean()
                 )
                 prices[y] = price_y
-        prices["carrier"] = ca.replace('AC', 'elec')
-        df.append(prices.reset_index().set_index(['countries', 'carrier']))
+        prices["carrier"] = ca.replace("AC", "elec")
+        df.append(prices.reset_index().set_index(["countries", "carrier"]))
     df = pd.concat(df, axis=0)
     return df
 
@@ -559,10 +566,10 @@ def extract_temporal_supply_energy(config, n, carriers=None, carriers_renamer=No
         Path(config["path"]["analysis_path"].resolve().parents[1], "sector_mapping.csv"), index_col=[0, 1, 2],
         header=0).dropna()
     sector_mapping = sector_mapping.reset_index()
-    sector_mapping['carrier'] = sector_mapping['carrier'].map(lambda x: carriers_renamer.get(x, x))
-    sector_mapping['item'] = sector_mapping['item'].map(remove_prefixes)
+    sector_mapping["carrier"] = sector_mapping["carrier"].map(lambda x: carriers_renamer.get(x, x))
+    sector_mapping["item"] = sector_mapping["item"].map(remove_prefixes)
     if carriers is None:
-        carriers = sector_mapping['carrier'].unique()
+        carriers = sector_mapping["carrier"].unique()
     sector_mapping = sector_mapping.groupby(["carrier", "component", "item"]).first()
 
     for y, ni in n.items():
@@ -572,8 +579,8 @@ def extract_temporal_supply_energy(config, n, carriers=None, carriers_renamer=No
                                            country_aggregate=country_aggregate, fun=remove_prefixes)
     df = df * len(ni.snapshots) / 8760
     idx = ["carrier", "component", "item", "snapshot"]
-    if not(country_aggregate):
-        idx = ['node'] + idx
+    if not (country_aggregate):
+        idx = ["node"] + idx
     df.index.names = idx
     df.columns = df.columns.get_level_values(3)
 
@@ -583,12 +590,13 @@ def extract_temporal_supply_energy(config, n, carriers=None, carriers_renamer=No
     if not (country_aggregate):
         df = df.reset_index()
         df["node"] = df["node"].map(renamer_to_country)
-        df = df.loc[(df.groupby(['node', 'carrier', 'component', 'item'])
-                [config["scenario"]["planning_horizons"]]
-                .filter(lambda x : (x.sum(axis=0)>1e2).any())
-        ).index].set_index(idx)
+        df = df.loc[(df.groupby(["node", "carrier", "component", "item"])
+                     [config["scenario"]["planning_horizons"]]
+                     .filter(lambda x: (x.sum(axis=0) > 1e2).any())
+                     ).index].set_index(idx)
 
-    df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left").dropna(axis=0,subset='sector')
+    df = df.merge(sector_mapping, left_on=["carrier", "component", "item"], right_index=True, how="left").dropna(axis=0,
+                                                                                                                 subset="sector")
     return df
 
 
@@ -615,12 +623,12 @@ def extract_gas_phase_out(n, year):
                 .reset_index()
                 .pivot(index="country", columns="build_year", values="p_carrier_nom_opt")
             ) / 1e3  # GW
-    n_cgt['units'] = 'GW_e'
+    n_cgt["units"] = "GW_e"
 
     if year in n_cgt.columns:
         sorting = year
     else:
-        sorting = 'hist'
+        sorting = "hist"
 
     n_cgt = n_cgt.sort_values(by=sorting, ascending=False)
     return n_cgt[n_cgt[sorting] >= 5].fillna(0)
@@ -656,16 +664,16 @@ def _extract_graphs(config, n, storage_function, storage_horizon, both=False, un
         pass
     else:
         color_shift = dict(zip(config["scenario"]["planning_horizons"],
-                               ['C' + str(i) for i in range(len(config["scenario"]["planning_horizons"]))]))
+                               ["C" + str(i) for i in range(len(config["scenario"]["planning_horizons"]))]))
     fig = plt.figure(figsize=(14, 8))
 
     def plotting(ax, title, data, y, unit):
-        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime('2030-%m-%d-%H'))
+        data.index = pd.to_datetime(pd.DatetimeIndex(data.index.values).strftime("2030-%m-%d-%H"))
         ax.plot(data, label=y, color=color_shift.get(y))
         ax.set_title(title)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.set_ylabel(unit, ha='left', y=1.1, rotation=0, labelpad=0.2)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_ylabel(unit, ha="left", y=1.1, rotation=0, labelpad=0.2)
         plt.xticks(rotation=30)
         plt.tight_layout()
         return
@@ -684,10 +692,10 @@ def _extract_graphs(config, n, storage_function, storage_horizon, both=False, un
                 st[car] = storage.iloc[:int(8 * 31)]
         for i, (car, s) in enumerate(st.items()):
             ax = plt.subplot(3, 2, 2 * i + 1)
-            plotting(ax, car, s, y, unit=r"${}$".format(units.get(car, '[TWh]')))
+            plotting(ax, car, s, y, unit=r"${}$".format(units.get(car, "[TWh]")))
         for i, (car, l) in enumerate((lt).items()):
             ax = plt.subplot(3, 2, 2 * (i + 1))
-            plotting(ax, car, l, y, unit=r"${}$".format(units.get(car, '[TWh]')))
+            plotting(ax, car, l, y, unit=r"${}$".format(units.get(car, "[TWh]")))
 
     ax.legend()
     return {"": fig}
@@ -695,13 +703,13 @@ def _extract_graphs(config, n, storage_function, storage_horizon, both=False, un
 
 def extract_graphs(config, n, color_shift=None):
     ## Figures to extract
-    plt.close('all')
+    plt.close("all")
     # Storage
     mpl.rcParams.update(mpl.rcParamsDefault)
     if color_shift:
         pass
     else:
-        color_shift = dict(zip(config["scenario"]["planning_horizons"], ['C0', 'C2', 'C1']))
+        color_shift = dict(zip(config["scenario"]["planning_horizons"], ["C0", "C2", "C1"]))
 
     storage_function = {"hydro": "get_state_of_charge_t", "PHS": "get_state_of_charge_t"}
     storage_horizon = {"hydro": "LT", "PHS": "ST", "H2 Store": "LT",
@@ -717,14 +725,14 @@ def extract_graphs(config, n, color_shift=None):
     return n_sto, n_h2
 
 
-def extract_series(config, n, carriers=['electricity'], load=False, supply=False):
+def extract_series(config, n, carriers=["electricity"], load=False, supply=False):
     with plt.style.context(["ggplot"]):
         df = config["plotting"]
         plots = {}
         # TODO : add multiple carriers
         for carrier in carriers:
             for y, ni in n.items():
-                with pd.option_context('mode.chained_assignment', None):
+                with pd.option_context("mode.chained_assignment", None):
                     plots[y] = plot_series(ni, carrier=carrier, name=carrier, year=str(y),
                                            load_only=load, supply_only=supply, colors=df["tech_colors"],
                                            path=Path(config["csvs"], f"series_AC_{y}.png"), save=False)
@@ -735,21 +743,21 @@ def extract_series_px(config, data):
     plots = {}
     prod_profiles = data.copy().reset_index()
     prod_profiles.snapshots = prod_profiles.snapshots.astype(str)
-    for carrier in config['carriers_to_plot']:
-        for y in config['years_str']:
+    for carrier in config["carriers_to_plot"]:
+        for y in config["years_str"]:
             # TODO : add other carriers for outputs
             df = (prod_profiles.query("carrier.str.contains(@carrier)")
                   .query("snapshots.str.contains(@y)")
-                  .dropna(axis=1, how='all')
-                  .groupby('snapshots')
+                  .dropna(axis=1, how="all")
+                  .groupby("snapshots")
                   .sum(numeric_only=True))
 
-            fig = px.area(df, color_discrete_map=config["plotting"]['tech_colors'])
+            fig = px.area(df, color_discrete_map=config["plotting"]["tech_colors"])
             fig.update_traces(line=dict(width=0.1))
             fig.update_layout(legend_traceorder="reversed")
-            fig.update_yaxes(title_text='Consumption [GW]')
-            fig.update_xaxes(title_text='Timesteps')
-            fig.update_layout(legend_title_text='Technologies')
+            fig.update_yaxes(title_text="Consumption [GW]")
+            fig.update_xaxes(title_text="Timesteps")
+            fig.update_layout(legend_title_text="Technologies")
             plots[f"{carrier}_{y}"] = fig
     return plots
 
@@ -759,7 +767,7 @@ def extract_plot_capacities(config, n):
         df = config["plotting"]
         plots = {}
         for y, ni in n.items():
-            with pd.option_context('mode.chained_assignment', None):
+            with pd.option_context("mode.chained_assignment", None):
                 plots[y] = plot_capacity(ni, colors=df["tech_colors"], _map_opts=df["map"],
                                          bus_size_factor=1e5, path=Path(config["csvs"], f"capacities_{y}.png"),
                                          run_from_rule=False, transmission=True, save=False)
@@ -770,14 +778,14 @@ def extract_profiles(config, n, regionalized=False, supply=False, load=False):
     production_profiles = []
     assert (supply or load), "No data to return"
 
-    for carrier in config['carriers_to_plot']:
+    for carrier in config["carriers_to_plot"]:
         df = []
         for y, ni in n.items():
             df.append(plot_series(ni, carrier=carrier, name=carrier, year=str(y),
                                   return_data=True, supply_only=supply,
                                   load_only=load, regionalized=regionalized))
         df = pd.concat(df)
-        df['carrier'] = carrier
+        df["carrier"] = carrier
         production_profiles.append(df)
     production_profiles = (pd.concat(production_profiles)
                            .reset_index()
@@ -791,7 +799,7 @@ def export_csvs_figures(csvs, outputs, figures):
 
     for f_name, f in figures.items():
         for y, plot in f.items():
-            if 'px' in f_name:
+            if "px" in f_name:
                 plot.write_html(Path(csvs, f"{f_name}_{y}.html"))
             else:
                 plot.savefig(Path(csvs, f"{f_name}_{y}.png"), transparent=True)
@@ -810,15 +818,15 @@ def transform_data(config, n, n_ext, color_shift=None):
     carriers_renamer = {}
     carriers_renamer.update(HEAT_RENAMER)
     carriers_renamer.update(ELEC_RENAMER)
-    
+
     n_power_capa = stats(config, n, carriers_renamer)
 
     # # DataFrames to extract
-    temporal_res_supply = extract_res_temporal_energy(config,n)
+    temporal_res_supply = extract_res_temporal_energy(config, n)
     prod_profiles = extract_profiles(config, n, supply=True)
     load_profiles = extract_profiles(config, n, load=True)
     # n_loads = extract_loads(n)
-    nodal_oil_load = extract_nodal_oil_load(config, nhours=n_ext['hist'].snapshot_weightings.generators.sum())
+    nodal_oil_load = extract_nodal_oil_load(config, nhours=n_ext["hist"].snapshot_weightings.generators.sum())
     n_res_pot = extract_res_potential(n)
     res_stats = extract_res_statistics(n)
     capa_country = extract_country_capacities(config, n_ext)
@@ -826,7 +834,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     H2_grid, H2_countries, H2_imp_exp = extract_transmission(n_ext, carriers=["H2 pipeline", "H2 pipeline retrofitted"])
     gas_grid, gas_countries, gas_imp_exp = extract_transmission(n_ext, carriers=["gas pipeline", "gas pipeline new"])
     n_costs = extract_nodal_costs(config)
-    marginal_prices = extract_marginal_prices(n, carrier_list=['gas', 'AC', 'H2'])
+    marginal_prices = extract_marginal_prices(n, carrier_list=["gas", "AC", "H2"])
     nodal_supply_energy = extract_nodal_supply_energy(config, n)
     temporal_supply_energy = extract_temporal_supply_energy(config, n, carriers_renamer=carriers_renamer,
                                                             time_aggregate=False, country_aggregate=True)
@@ -835,7 +843,7 @@ def transform_data(config, n, n_ext, color_shift=None):
     # n_profile = extract_production_profiles(n, subset=LONG_LIST_LINKS + LONG_LIST_GENS)
 
     imp_exp = pd.concat([y.reset_index()
-                        .set_index(['imports_exports', 'countries', 'year', 'carriers'])
+                        .set_index(["imports_exports", "countries", "year", "carriers"])
                          for y in [el_imp_exp, H2_imp_exp, gas_imp_exp]])
 
     # Figures to extract
@@ -849,43 +857,43 @@ def transform_data(config, n, n_ext, color_shift=None):
     # Define outputs and export them
     outputs = {
         # assets
-        'units_capacities_countries': capa_country,
-        'gas_phase_out': n_gas_out,
-        'res_potentials': n_res_pot,
+        "units_capacities_countries": capa_country,
+        "gas_phase_out": n_gas_out,
+        "res_potentials": n_res_pot,
         "power_production_countries": n_power_capa,
 
         # networks
-        'grid_capacities_countries': ACDC_countries,
-        'H2_network_capacities_countries': H2_countries,
-        'gas_network_capacities_countries': gas_countries,
-        'grid_capacities': ACDC_grid,
-        'H2_network_capacities': H2_grid,
-        'gas_network_capacities': gas_grid,
+        "grid_capacities_countries": ACDC_countries,
+        "H2_network_capacities_countries": H2_countries,
+        "gas_network_capacities_countries": gas_countries,
+        "grid_capacities": ACDC_grid,
+        "H2_network_capacities": H2_grid,
+        "gas_network_capacities": gas_grid,
 
         # energy balance
-        'imports_exports': imp_exp,
-        'supply_energy_sectors': nodal_supply_energy,
-        'temporal_supply_energy_sectors': temporal_supply_energy,
-        'nodal_oil_load': nodal_oil_load,
+        "imports_exports": imp_exp,
+        "supply_energy_sectors": nodal_supply_energy,
+        "temporal_supply_energy_sectors": temporal_supply_energy,
+        "nodal_oil_load": nodal_oil_load,
 
         # insights
-        'costs_countries': n_costs,
-        'marginal_prices_countries': marginal_prices,
-        'res_statistics': res_stats,
-        # 'loads_profiles': n_loads,
+        "costs_countries": n_costs,
+        "marginal_prices_countries": marginal_prices,
+        "res_statistics": res_stats,
+        # "loads_profiles": n_loads,
         "generation_profiles": prod_profiles,
         "load_profiles": load_profiles,
         "temporal_res_supply": temporal_res_supply
     }
 
     figures = {
-        'storage_unit': n_sto,
-        'h2_production': n_h2,
-        'series_production': series_production,
-        'series_production_px': series_production_px,
-        'series_consumption': series_consumption,
-        'series_consumption_px': series_consumption_px,
-        'map_capacities': map_capacities
+        "storage_unit": n_sto,
+        "h2_production": n_h2,
+        "series_production": series_production,
+        "series_production_px": series_production_px,
+        "series_consumption": series_consumption,
+        "series_consumption_px": series_consumption_px,
+        "map_capacities": map_capacities
     }
 
     export_csvs_figures(config["csvs"], outputs, figures)

@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-
 from scripts.graph_extraction_utils import CLIP_VALUE_GW
 from scripts.graph_extraction_utils import HEAT_RENAMER
 from scripts.graph_extraction_utils import RES
@@ -80,8 +79,6 @@ def _load_capacities(config, techs, historical="Historical (installed capacity b
     return df
 
 
-
-
 def load_capacities(config, tech_list, historical):
     """
     Generic function loading for each countries subset the type given in input and the name associated,
@@ -120,7 +117,6 @@ def load_fossil_fuels(config):
 
 def load_h2_capacities(config):
     return load_capacities(config, H2, historical="Historical (installed capacity by 2025)")
-
 
 
 # %% Costs load
@@ -218,7 +214,7 @@ def load_costs_segments(config):
     return _load_costs(config, per_segment=True)
 
 
-#%%Supply energy
+# %%Supply energy
 def _load_supply_energy_dico(config, load=True, countries=None):
     """
     Allow to split _load_supply_energy into its carriers for it
@@ -361,6 +357,7 @@ def load_supply_heat_be(config):
             .reset_index()
         )
     return df
+
 
 # %% Non standard loads
 

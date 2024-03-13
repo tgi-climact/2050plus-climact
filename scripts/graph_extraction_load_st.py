@@ -11,7 +11,6 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-
 from scripts.graph_extraction_utils import HEAT_RENAMER
 from scripts.graph_extraction_utils import _load_nodal_oil
 from scripts.graph_extraction_utils import _load_supply_energy
@@ -67,16 +66,18 @@ def load_supply_energy_df(config, load=True):
     df = pd.concat(dfl)
     return df
 
+
 def load_res_potentials(config):
-    df = pd.read_csv(Path(config["csvs"], "res_potentials.csv"),header=0)
+    df = pd.read_csv(Path(config["csvs"], "res_potentials.csv"), header=0)
     return (
-        df.loc[:,['carrier','region',config['years_str'][-1]]]
-            .rename(columns={'region':'country',config['years_str'][-1]:'Potential [GW]'})
-            .pivot(columns='carrier',index='country',values='Potential [GW]')
-            .fillna(0)
-            .reindex(columns= ['hydro','ror','offwind','onwind','solar', 'solar thermal'])
-            .reset_index()
-            )
+        df.loc[:, ['carrier', 'region', config['years_str'][-1]]]
+        .rename(columns={'region': 'country', config['years_str'][-1]: 'Potential [GW]'})
+        .pivot(columns='carrier', index='country', values='Potential [GW]')
+        .fillna(0)
+        .reindex(columns=['hydro', 'ror', 'offwind', 'onwind', 'solar', 'solar thermal'])
+        .reset_index()
+    )
+
 
 def load_imports_exports(config):
     """
@@ -100,7 +101,7 @@ def load_supply_temporal(config):
 
 
 def load_res_temporal(config):
-    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"),header=0)
+    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"), header=0)
 
 
 def load_generation_profiles(config):
@@ -109,6 +110,7 @@ def load_generation_profiles(config):
 
 def load_power_capacities(config):
     return pd.read_csv(Path(config["csvs"], "power_production_countries.csv"))
+
 
 # %% Load main
 def load_data_st(config):

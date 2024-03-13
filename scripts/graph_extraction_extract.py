@@ -11,7 +11,6 @@ from pathlib import Path
 
 import numpy as np
 import pypsa
-
 from scripts.graph_extraction_utils import bus_mapper
 from scripts.make_summary import assign_carriers
 from scripts.make_summary import assign_locations
