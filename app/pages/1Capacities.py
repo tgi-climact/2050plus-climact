@@ -12,6 +12,7 @@ st_page_config(layout="wide")
 scenario = st_side_bar()
 
 st.title("Power production installed capacities")
+st.text("Power production units are units able to supply electricity ")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
@@ -30,8 +31,6 @@ def get_df(scenario):
 # %%
 data = get_df(scenario)
 df = data.copy()
-
-st.markdown("NB : Power production units are units able to supply electricity ")
 
 st.header("Installed capacities per country")
 
@@ -55,7 +54,7 @@ fig = px.bar(
 )
 
 fig.update_yaxes(title_text='Installed capacities [GW]')
-fig.update_xaxes(title_text='Countries')
+fig.update_xaxes(title_text='Technologies')
 fig.update_traces(hovertemplate="%{y:,.0f}")
 fig.update_layout(hovermode="x unified",
                   legend_title_text='Technologies')
