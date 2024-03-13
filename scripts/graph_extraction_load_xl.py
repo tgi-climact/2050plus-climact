@@ -424,14 +424,6 @@ def load_res_potentials_be(config):
     )
 
 
-# def load_industrial_demand(config):
-#     return (
-#         pd.read_csv(Path(config["csvs"], "load_profiles.csv"), header=0)
-#         .query("Load != 'Electricity demand for sectors'")
-#         .groupby(by=["Load", "Years"]).agg({"Annual sum [TWh]": "sum"}).reset_index()
-#     )
-
-
 # def load_production_profile(config):
 #     return (
 #         pd.read_csv(Path(config["csvs"], "generation_profiles.csv"), header=0)
@@ -473,7 +465,6 @@ def load_data_xl(config):
         "h2_network_capacities_countries",
         "res_potentials",
         "res_potentials_be",
-        "industrial_demand",
         "imports_exports",
         # "production_profile",
     ]
