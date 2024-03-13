@@ -8,6 +8,7 @@ Create data ready to present (load to streamlit)
 """
 
 import logging
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -91,21 +92,27 @@ def load_imports_exports(config):
 
 
 def load_load_temporal(config):
-    load = _load_supply_energy(config, load=True, aggregate=True, temporal=True)
+    load_raw = _load_supply_energy(config, load=True, aggregate=True, temporal=True)
+    load = {}
+    for y in [c for c in load_raw.columns if re.match(r"[0-9]{4}", c)]:
+        load[y] = load_raw.pivot_table(values=y, index=["carrier", "sector"], columns="snapshot").reset_index()
     return load
 
 
 def load_supply_temporal(config):
-    supply = _load_supply_energy(config, load=False, aggregate=True, temporal=True)
+    supply_raw = _load_supply_energy(config, load=False, aggregate=True, temporal=True)
+    supply = {}
+    for y in [c for c in supply_raw.columns if re.match(r"[0-9]{4}", c)]:
+        supply[y] = supply_raw.pivot_table(values=y, index=["carrier", "sector"], columns="snapshot").reset_index()
     return supply
 
 
 def load_res_temporal(config):
-    return pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"), header=0)
-
-
-def load_generation_profiles(config):
-    return pd.read_csv(Path(config["csvs"], "generation_profiles.csv"))
+    res_raw = pd.read_csv(Path(config["csvs"], "temporal_res_supply.csv"), header=0)
+    res = {}
+    for y in res_raw["year"].unique():
+        res[str(y)] = res_raw.query("year==@y").drop("year", axis=1)
+    return res
 
 
 def load_power_capacities(config):
@@ -121,7 +128,6 @@ def load_data_st(config):
         "supply_temporal",
         "supply_energy_df",
         "imports_exports",
-        "generation_profiles",
         "res_temporal",
         "res_potentials",
         "power_capacities"

@@ -316,19 +316,18 @@ def extract_res_temporal_energy(config, n):
     for y, ni in n.items():
         units = pd.concat([ni.generators, ni.storage_units, ni.links])
         units_t = pd.concat([ni.generators_t.p, ni.storage_units_t.p, ni.links_t.p1], axis=1)
-        res = units.query("carrier in @RES or carrier in @HYDRO or " \
+        res = units.copy().query("carrier in @RES or carrier in @HYDRO or " \
                           "carrier.str.contains('solar thermal') or carrier.str.contains('solid biomass CHP')")
         res_t = units_t[res.index]
         res.loc[res.bus.isna(), "bus"] = res.loc[res.bus.isna(), "bus1"]
         res["country"] = res.bus.map(renamer_to_country)
         res["carrier"] = res.carrier.apply(remove_prefixes).apply(lambda x: RENAMER.get(x, x))
 
-        res_t.columns = res_t.columns.map(lambda x: (res.loc[x].carrier, res.loc[x].country))
-        res_t.rename_axis(["carrier", "country"], axis=1, inplace=True)
-        res_t = res_t.groupby(["carrier", "country"], axis=1).sum()
-        res_t.index = pd.to_datetime(pd.DatetimeIndex(res_t.index.values, name="snapshots").strftime(f"{y}-%m-%d-%H"))
+        res_t.columns = res_t.columns.map(lambda x: (y, res.loc[x].carrier, res.loc[x].country))
+        res_t.rename_axis(["year", "carrier", "country"], axis=1, inplace=True)
+        res_t = res_t.groupby(["year", "carrier", "country"], axis=1).sum()
         df.append(res_t)
-    df = pd.concat(df) / 1e3  # GW
+    df = pd.concat(df, axis=1) / 1e3  # GW
     return df.T
 
 

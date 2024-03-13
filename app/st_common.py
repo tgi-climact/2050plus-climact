@@ -11,7 +11,7 @@ scenario_dict = {
         "path": "VEKA_av_bio_fix_nuc_bev_ccl",
         "fn": "elec_s181_37m_lv3.0__3H-I-T-H-B-A-CCL_YEAR.nc",
     },
-    "Électrification": {
+    "Electrification": {
         "path": "VEKA_el_bio_fix_nuc_bev_ccl",
         "fn": "elec_s181_37m_lv3.0__3H-I-T-H-B-A-CCL_YEAR.nc",
     }
@@ -48,6 +48,6 @@ def st_side_bar():
     with st.sidebar:
         scenario = st.selectbox(
             "Select your scenario",
-            ["Average", "Électrification"]
+            ["Average", "Electrification"]
         )
     return scenario

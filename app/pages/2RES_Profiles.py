@@ -15,13 +15,13 @@ st.title("Renewable production per carrier")
 
 
 @st.cache_data(show_spinner="Retrieving data ...")
-def get_df(scenario):
+def get_df(scenario, year):
     return (
         pd.read_excel(
             Path(network_path,
                  scenario_dict[scenario]["path"],
                  "graph_extraction_st.xlsx"),
-            sheet_name="res_temporal",
+            sheet_name="res_temporal_" + year,
             header=0,
         )
     )
@@ -33,19 +33,18 @@ def get_df(scenario):
 # - 3h load profile
 # - eventually per country
 years = ['2030', '2040', '2050']
-data = get_df(scenario)
-df = data.copy()
 
 col1, col2 = st.columns(2)
 with col1:
+    year = st.selectbox('Choose the year:', years)
+df = get_df(scenario, year)
+
+with col2:
     country = st.selectbox('Choose your country:', ['EU27 + TYNDP'] + list(df["country"].unique()))
 if country != 'EU27 + TYNDP':
     df = df.query("country in @country")
 df = df.groupby(['carrier']).sum(numeric_only=True).T
 
-with col2:
-    year = st.selectbox('Choose the year:', years)
-df = df.query("index.str.contains(@year)")
 
 df = abs(df.loc[:, abs(df.sum() / 1e3 * 3) > 1e-1]).T
 
@@ -67,7 +66,7 @@ carrier = st.selectbox('Choose your carrier:', list(df.index.unique()))
 if carrier != 'all':
     df = df.query("carrier in @carrier")
 df = df.sum(axis=0).rename(carrier).to_frame()
-# df = df.groupby(['country','carrier']).sum().T
+df.index = pd.to_datetime(pd.DatetimeIndex(df.index, name='snapshots').strftime(f'{year}-%m-%d-%H'))
 
 
 fig = px.area(
