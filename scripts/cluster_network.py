@@ -231,7 +231,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="scip"):
         .pipe(normed)
     )
 
-    N = n.buses.groupby(["country", "sub_network"]).size()
+    N = n.buses.groupby(["country", "sub_network"]).size()[L.index]
 
     assert (
         n_clusters >= len(N) and n_clusters <= N.sum()
@@ -267,7 +267,7 @@ def distribute_clusters(n, n_clusters, focus_weights=None, solver_name="scip"):
     m.objective = (clusters * clusters - 2 * clusters * L * n_clusters).sum()
     if solver_name == "gurobi":
         logging.getLogger("gurobipy").propagate = False
-    elif solver_name not in ["scip", "cplex"]:
+    elif solver_name not in ["scip", "cplex", "xpress", "copt", "mosek"]:
         logger.info(
             f"The configured solver `{solver_name}` does not support quadratic objectives. Falling back to `scip`."
         )
@@ -454,7 +454,7 @@ if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
 
-        snakemake = mock_snakemake("cluster_network", simpl="", clusters="37")
+        snakemake = mock_snakemake("cluster_network", simpl="", clusters="40")
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
