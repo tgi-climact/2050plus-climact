@@ -126,6 +126,8 @@ Upcoming Release
 
 * Fix fill missing data in `build_industry_sector_ratios_intermediate`.
 
+* Fix custom busmap read in `cluster_network`.
+
 PyPSA-Eur 0.10.0 (19th February 2024)
 =====================================
 
